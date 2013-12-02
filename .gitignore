@@ -1,0 +1,10 @@
+
+# Ignore build generated files
+build
+
+# Vim swap files.
+*.swp
+
+# Waf lock files.
+.lock-waf*
+
