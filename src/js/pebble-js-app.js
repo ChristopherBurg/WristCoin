@@ -22,18 +22,21 @@ function fetchBitstampPrice() {
                 var high, last, bid, low, ask;
 
                 //if (response.Data) {
-                    high = response.high;
-                    last = response.last;
-                    bid = response.bid;
-                    low = response.low;
-                    ask = response.ask;
+                high = response.high;
+                last = response.last;
+                bid = response.bid;
+                low = response.low;
+                ask = response.ask;
 
-                    console.log("Asking price is " + ask + ".");
+                console.log("Asking price is " + ask + ".");
 
-                    Pebble.sendAppMessage({"bitstampHigh" : "$" + high.toString(), 
-                                           "bitstampLow" : "$" + low.toString(), 
-                                           "bitstampLast" : "$" + last.toString()
-                                          });
+                // HAVE NO TESTED EXCHANGE VALUE. bitstamp, being from
+                // appinfo.json may not work like this.
+                Pebble.sendAppMessage({"bitstamp" : "1",
+                                       "bitstampHigh" : "$" + high.toString(), 
+                                       "bitstampLow" : "$" + low.toString(), 
+                                       "bitstampLast" : "$" + last.toString()
+                                      });
                 //} else {
                 //    console.log("Returned response didn't contain any data.");
                 //}
