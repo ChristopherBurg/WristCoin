@@ -21,25 +21,17 @@ function fetchBitstampPrice() {
                 response = JSON.parse(req.responseText);
                 var high, last, bid, low, ask;
 
-                //if (response.Data) {
                 high = response.high;
                 last = response.last;
                 bid = response.bid;
                 low = response.low;
                 ask = response.ask;
 
-                console.log("Asking price is " + ask + ".");
-
-                // HAVE NO TESTED EXCHANGE VALUE. bitstamp, being from
-                // appinfo.json may not work like this.
                 Pebble.sendAppMessage({"bitstamp" : "1",
                                        "bitstampHigh" : "$" + high.toString(), 
                                        "bitstampLow" : "$" + low.toString(), 
                                        "bitstampLast" : "$" + last.toString()
                                       });
-                //} else {
-                //    console.log("Returned response didn't contain any data.");
-                //}
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status + " instead.");
@@ -50,6 +42,33 @@ function fetchBitstampPrice() {
     }
 
     req.send(null);
+}
+
+// Gets the current price list from Mt. Gox.
+function fetchMtGox() {
+    var response;
+    var req = new XMLHttpRequest();
+
+    console.log("Fetching Mt. Gox prices.");
+
+    req.open("GET", "https://data.mtgox.com/api/2/BTCUSD/money/ticker", true);
+
+    req.onload = function(e) {
+        if (req.readyState == 4) {
+            if (req.status == 200) {
+
+
+
+            } else {
+                console.log("HTTP status returned was not 200. Received " + req.status + " instead.");
+            }
+
+        } else {
+            console.log("Didn't receieve ready status of 4. Received " + req.readyState + " instead.");
+        }
+
+    }
+
 }
 
 Pebble.addEventListener("appmessage",
