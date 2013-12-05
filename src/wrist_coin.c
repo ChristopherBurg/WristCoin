@@ -5,8 +5,9 @@
 #define EXCHANGE_NAME_LENGTH (10) // Length, in bytes, an exchange's name can be.
 #define PRICE_FIELD_LENGTH (10) // Length, in bytes, a price field can be.
 
-#define NUMBER_OF_EXCHANGES (1) // The number of exchanges. Increment when an exchange is added.
+#define NUMBER_OF_EXCHANGES (2) // The number of exchanges. Increment when an exchange is added.
 #define BITSTAMP_INDEX (0) // Index in the exchage_data_list array that contains Bitstamp data.
+#define MTGOX_INDEX (1) // Index in the exchange_data_list array that contians Mt. Gox data.
 
 static Window *window;
 static MenuLayer *exchange_menu;
@@ -17,11 +18,15 @@ static MenuLayer *exchange_menu;
    This list should mirror the list of appkeys found in the appinfo.json file.
 */
 enum {
-    WRIST_COIN_KEY_FETCH = 0x0, // NOT CURRENTLY USED. MAY BE USED IN THE FUTURE.
+    WRIST_COIN_KEY_FETCH = 0x0, // NOT CURRENTLY USED. MAY BE USED IN THE FUTURE. MAY NOT BE.
     WRIST_COIN_KEY_BITSTAMP = 100, // Informs the JavaScript code to fetch prices from Bitstamp.
     WRIST_COIN_KEY_BITSTAMP_HIGH = 101, // Used by the JavaScript code to return Bitstamp's high price.
     WRIST_COIN_KEY_BITSTAMP_LOW = 102, // Used by the JavaScript code to return Bitstamp's low price.
     WRIST_COIN_KEY_BITSTAMP_LAST = 103, // Used by the JavaScript code to return Bitstamp's last price.
+    WRIST_COIN_KEY_MTGOX = 200,
+    WRIST_COIN_KEY_MTGOX_HIGH = 201,
+    WRIST_COIN_KEY_MTGOX_LOW = 202,
+    WRIST_COIN_KEY_MTGOX_LAST = 203,
 };
 
 /* A structure to contain an exchange's information. Each exchange should have
@@ -52,7 +57,8 @@ static ExchangeData* get_data_for_exchange(int index) {
    prices from Bitcoin exchanges.
 */
 static void fetch_message(void) {
-    Tuplet bitstamp_tuple = TupletInteger(WRIST_COIN_KEY_BITSTAMP, 1);
+    Tuplet bitstamp_tuplet = TupletInteger(WRIST_COIN_KEY_BITSTAMP, 1);
+    Tuplet mtgox_tuplet = TupletInteger(WRIST_COIN_KEY_MTGOX, 1);
 
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
@@ -61,7 +67,8 @@ static void fetch_message(void) {
       return;
     }
 
-    dict_write_tuplet(iter, &bitstamp_tuple);
+    dict_write_tuplet(iter, &bitstamp_tuplet);
+    dict_write_tuplet(iter, &mtgox_tuplet);
     dict_write_end(iter);
 
     app_message_outbox_send();
@@ -119,6 +126,7 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
 
 static void in_received_handler(DictionaryIterator *received, void *context) {
     Tuple *bitstamp_exchange = dict_find(received, WRIST_COIN_KEY_BITSTAMP);
+    Tuple *mtgox_exchange = dict_find(received, WRIST_COIN_KEY_MTGOX);
 
     // Load the prices for Bitstamp into exchange_data_list.
     if (bitstamp_exchange) {
@@ -135,6 +143,24 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
         if (last) {
             strncpy(exchange_data_list[BITSTAMP_INDEX].last, last->value->cstring, PRICE_FIELD_LENGTH);
         }
+    }
+
+    // Load the prices for Mt. Gox into exchange_datea_list.
+    if (mtgox_exchange) {
+        Tuple *high = dict_find(received, WRIST_COIN_KEY_MTGOX_HIGH);
+        Tuple *low = dict_find(received, WRIST_COIN_KEY_MTGOX_LOW);
+        Tuple *last = dict_find(received, WRIST_COIN_KEY_MTGOX_LAST);
+
+        if (high) {
+            strncpy(exchange_data_list[MTGOX_INDEX].high, high->value->cstring, PRICE_FIELD_LENGTH);
+        }
+        if (low) {
+            strncpy(exchange_data_list[MTGOX_INDEX].low, low->value->cstring, PRICE_FIELD_LENGTH);
+        }
+        if (last) {
+            strncpy(exchange_data_list[MTGOX_INDEX].last, last->value->cstring, PRICE_FIELD_LENGTH);
+        }
+
     }
 
     menu_layer_reload_data(exchange_menu);
@@ -158,6 +184,11 @@ static void window_load(Window *window) {
     strncpy(exchange_data_list[BITSTAMP_INDEX].high, "$0.00\0", PRICE_FIELD_LENGTH);
     strncpy(exchange_data_list[BITSTAMP_INDEX].low, "$0.00\0", PRICE_FIELD_LENGTH);
     strncpy(exchange_data_list[BITSTAMP_INDEX].last, "$0.00\0", PRICE_FIELD_LENGTH);
+
+    strncpy(exchange_data_list[MTGOX_INDEX].exchange_name, "Mt. Gox\0", EXCHANGE_NAME_LENGTH);
+    strncpy(exchange_data_list[MTGOX_INDEX].high, "$0.00\0", PRICE_FIELD_LENGTH);
+    strncpy(exchange_data_list[MTGOX_INDEX].low, "$0.00\0", PRICE_FIELD_LENGTH);
+    strncpy(exchange_data_list[MTGOX_INDEX].last, "$0.00\0", PRICE_FIELD_LENGTH);
 
     exchange_menu = menu_layer_create(bounds);
     menu_layer_set_callbacks(exchange_menu, NULL, (MenuLayerCallbacks) {
@@ -188,7 +219,7 @@ static void app_message_init(void) {
     app_message_register_inbox_received(in_received_handler);
     app_message_register_inbox_dropped(in_dropped_handler);
 
-    app_message_open(64, 64);
+    app_message_open(128, 128);
 }
 
 static void init(void) {

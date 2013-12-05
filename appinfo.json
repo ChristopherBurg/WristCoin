@@ -13,7 +13,11 @@
     "bitstamp" : 100,
     "bitstampHigh" : 101,
     "bitstampLow" : 102,
-    "bitstampLast" : 103
+    "bitstampLast" : 103,
+    "mtgox" : 200,
+    "mtgoxHigh" : 201,
+    "mtgoxLow" : 202,
+    "mtgoxLast" : 203
   },
   "resources": {
     "media": []
