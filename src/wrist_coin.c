@@ -151,6 +151,8 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
         Tuple *low = dict_find(received, WRIST_COIN_KEY_MTGOX_LOW);
         Tuple *last = dict_find(received, WRIST_COIN_KEY_MTGOX_LAST);
 
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "Mt. Gox up in this shit.");
+
         if (high) {
             strncpy(exchange_data_list[MTGOX_INDEX].high, high->value->cstring, PRICE_FIELD_LENGTH);
         }
@@ -158,6 +160,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
             strncpy(exchange_data_list[MTGOX_INDEX].low, low->value->cstring, PRICE_FIELD_LENGTH);
         }
         if (last) {
+            APP_LOG(APP_LOG_LEVEL_DEBUG, "Copying Mt. Gox last price to exchange_data_list.last.");
             strncpy(exchange_data_list[MTGOX_INDEX].last, last->value->cstring, PRICE_FIELD_LENGTH);
         }
 
@@ -219,7 +222,7 @@ static void app_message_init(void) {
     app_message_register_inbox_received(in_received_handler);
     app_message_register_inbox_dropped(in_dropped_handler);
 
-    app_message_open(128, 128);
+    app_message_open(64, 64);
 }
 
 static void init(void) {

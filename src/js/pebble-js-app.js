@@ -19,13 +19,10 @@ function fetchBitstampPrice() {
                 console.log(req.responseText);            
 
                 response = JSON.parse(req.responseText);
-                var high, last, bid, low, ask;
 
-                high = response.high;
-                last = response.last;
-                bid = response.bid;
-                low = response.low;
-                ask = response.ask;
+                var high = response.high;
+                var last = response.last;
+                var low = response.low;
 
                 Pebble.sendAppMessage({"bitstamp" : "1",
                                        "bitstampHigh" : "$" + high.toString(), 
@@ -63,12 +60,11 @@ function fetchMtGoxPrice() {
                 console.log(req.responseText);
 
                 response = JSON.parse(req.responseText);
-                var high, low, last;
 
                 if (response.result == "success") {
-                    high = response.data.high.display;
-                    low = response.data.low.display;
-                    last = response.data.last.display;
+                    var high = response.data.high.display;
+                    var low = response.data.low.display;
+                    var last = response.data.last.display;
 
                     console.log("High: " + high.toString());
                     console.log("Low: " + low.toString());
