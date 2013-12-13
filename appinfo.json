@@ -1,8 +1,8 @@
 {
   "uuid": "bea4cff2-3959-4e9c-a49b-d69b59be0caa",
-  "shortName": "wrist_coin",
-  "longName": "Wrist Coin",
-  "companyName": "CryptoDiscordian",
+  "shortName": "WristCoin",
+  "longName": "WristCoin",
+  "companyName": "Christopher Burg",
   "versionCode": 1,
   "versionLabel": "1.0.0",
   "watchapp": {
@@ -17,7 +17,11 @@
     "mtgox" : 200,
     "mtgoxHigh" : 201,
     "mtgoxLow" : 202,
-    "mtgoxLast" : 203
+    "mtgoxLast" : 203,
+    "btce" : 300,
+    "btceHigh" : 301,
+    "btceLow" : 302,
+    "btceLast" : 303
   },
   "resources": {
     "media": []

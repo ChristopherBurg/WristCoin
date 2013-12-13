@@ -43,23 +43,17 @@ function fetchBitstampPrice() {
 
 // Gets the current price list from Mt. Gox.
 function fetchMtGoxPrice() {
-    var response;
     var req = new XMLHttpRequest();
 
-    console.log("Fetching Mt. Gox prices.");
-
-    req.open("GET", "https://data.mtgox.com/api/2/BTCUSD/money/ticker", true);
-
-    req.onload = function(e) {
+    var onloadHandler = function(event) {
         console.log("Mt. Gox response received!");
 
         if (req.readyState == 4) {
             if (req.status == 200) {
 
-                console.log("Received response from Mt. Gox.");
                 console.log(req.responseText);
 
-                response = JSON.parse(req.responseText);
+                var response = JSON.parse(req.responseText);
 
                 if (response.result == "success") {
                     var high = response.data.high.display;
@@ -90,6 +84,53 @@ function fetchMtGoxPrice() {
 
     }
 
+    console.log("Fetching Mt. Gox prices.");
+
+    req.onload = onloadHandler;
+    
+    req.open("GET", "https://data.mtgox.com/api/2/BTCUSD/money/ticker", true);
+
+    req.send(null);
+}
+
+// Gets the current prices from BTC-e.
+function fetchBtcePrice() {
+    var req = new XMLHttpRequest();
+
+    var onloadHandler = function(event) {
+        console.log("BTC-e response received!");
+ 
+        if (req.readyState == 4) {
+            if (req.status == 200) {
+
+                console.log(req.responseText);
+
+                var response = JSON.parse(req.responseText);
+
+                var high = response.ticker.high;
+                var low = response.ticker.low;
+                var last = response.ticker.last;
+
+                Pebble.sendAppMessage({"btce" : "1",
+                                       "btceHigh" : high.toString(),
+                                       "btceLow" : low.toString(),
+                                       "btceLast" : last.toString()
+                                      });
+
+            } else {
+                console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
+            }
+        } else {
+            console.log("Didn't received ready status of 4. Received " + req.readyState.toString() + " instead.");
+        }
+    }
+
+    console.log("Fetching BTC-e prices.");
+
+    req.onload = onloadHandler;
+
+    req.open("GET", "https://btc-e.com/api/2/btc_usd/ticker", true);
+
     req.send(null);
 }
 
@@ -98,10 +139,6 @@ Pebble.addEventListener("appmessage",
         console.log("Received a message from the watch.");
         console.log(e.payload);
 
-//        if (e.payload.fetch) {
-//            console.log("Received request to fetch Bitstamp prices.");
-//            fetchBitstampPrice();
-//        }
         if (e.payload.bitstamp) {
             console.log("Received request to fetch Bitstamp prices.");
             fetchBitstampPrice();
@@ -109,6 +146,10 @@ Pebble.addEventListener("appmessage",
         if (e.payload.mtgox) {
             console.log("Received request to fetch Mt. Gox prices.");
             fetchMtGoxPrice();
+        }
+        if (e.payload.btce) {
+            console.log("Received request to fetch BTC-e prices.");
+            fetchBtcePrice();
         }
     }
 );
