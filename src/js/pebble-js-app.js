@@ -132,9 +132,9 @@ function fetchBtcePrice() {
                 var last = response.ticker.last;
 
                 Pebble.sendAppMessage({"btce" : "1",
-                                       "btceHigh" : high.toString(),
-                                       "btceLow" : low.toString(),
-                                       "btceLast" : last.toString()
+                                       "btceHigh" : "$" + high.toString(),
+                                       "btceLow" : "$" + low.toString(),
+                                       "btceLast" : "$"+ last.toString()
                                       });
 
             } else {

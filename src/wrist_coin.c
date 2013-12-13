@@ -213,9 +213,9 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
         if (error) {
             set_status_to_error(BTCE_INDEX);
         } else {
-            Tuple *high = dict_find(received, WRIST_COIN_KEY_MTGOX_HIGH);
-            Tuple *low = dict_find(received, WRIST_COIN_KEY_MTGOX_LOW);
-            Tuple *last = dict_find(received, WRIST_COIN_KEY_MTGOX_LAST);
+            Tuple *high = dict_find(received, WRIST_COIN_KEY_BTCE_HIGH);
+            Tuple *low = dict_find(received, WRIST_COIN_KEY_BTCE_LOW);
+            Tuple *last = dict_find(received, WRIST_COIN_KEY_BTCE_LAST);
 
             if (high) {
                 strncpy(exchange_data_list[BTCE_INDEX].high, high->value->cstring, PRICE_FIELD_LENGTH);
