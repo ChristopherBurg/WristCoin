@@ -14,14 +14,20 @@
     "bitstampHigh" : 101,
     "bitstampLow" : 102,
     "bitstampLast" : 103,
+    "bitstampError" : 198,
+    "bitstampErrorMessage" : 199,
     "mtgox" : 200,
     "mtgoxHigh" : 201,
     "mtgoxLow" : 202,
     "mtgoxLast" : 203,
+    "mtgoxError" : 298,
+    "mtgoxErrorMessage" : 299,
     "btce" : 300,
     "btceHigh" : 301,
     "btceLow" : 302,
-    "btceLast" : 303
+    "btceLast" : 303,
+    "btceError" : 398,
+    "btceErrorMessage" : 399
   },
   "resources": {
     "media": []

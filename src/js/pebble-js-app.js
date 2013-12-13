@@ -32,9 +32,17 @@ function fetchBitstampPrice() {
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status + " instead.");
+                Pebble.sendAppMessage({"bitstamp" : "1",
+                                       "bitstampError" : "1",
+                                       "bitstampErrorMessage" : "Failed to get response from Bitstamp server."
+                                      });
             }
         } else {
             console.log("Didn't receieve ready status of 4. Receieved " + req.readyStatus + " instead.");
+            Pebble.sendAppMessage({"bitstamp" : "1",
+                                   "bitstampError" : "1",
+                                   "bitstampErrorMessage" : "Failed to connect to Bitstamp server."
+                                  });
         }
     }
 
@@ -72,14 +80,26 @@ function fetchMtGoxPrice() {
 
                 } else {
                     console.log("Mt. Gox API didn't return success. Received " + response.success.toString() + " instead.");
+                    Pebble.sendAppMessage({"mtgox" : "1",
+                                           "mtgoxError" : "1",
+                                           "mtgoxErrorMessage" : "Recived bad response from Mt. Gox server."
+                                          });
                 }
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
+                Pebble.sendAppMessage({"mtgox" : "1",
+                                       "mtgoxError" : "1",
+                                       "mtgoxErrorMessage" : "Failed to get response from Mt. Gox server."
+                                      });
             }
 
         } else {
             console.log("Didn't receieve ready status of 4. Received " + req.readyState.toString() + " instead.");
+            Pebble.sendAppMessage({"mtgox" : "1",
+                                   "mtgoxError" : "1",
+                                   "mtgoxErrorMessage" : "Failed to connect to Mt. Gox server."
+                                  });
         }
 
     }
@@ -119,9 +139,17 @@ function fetchBtcePrice() {
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
+                Pebble.sendAppMessage({"btce" : "1",
+                                       "btceError" : "1",
+                                       "btceErrorMessage" : "Failed to get response from BTC-e server."
+                                      });
             }
         } else {
             console.log("Didn't received ready status of 4. Received " + req.readyState.toString() + " instead.");
+            Pebble.sendAppMessage({"btce" : "1",
+                                   "btceError" : "1",
+                                   "btceErrorMessage" : "Failed to connect to BTC-e server."
+                                  });
         }
     }
 
