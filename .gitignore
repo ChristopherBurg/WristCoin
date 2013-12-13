@@ -4,6 +4,7 @@ build
 
 # Vim swap files.
 *.swp
+*.swo
 
 # Waf lock files.
 .lock-waf*

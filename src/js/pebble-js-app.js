@@ -71,9 +71,9 @@ function fetchMtGoxPrice() {
                     console.log("Last: " + last.toString());
 
                     Pebble.sendAppMessage({"mtgox" : "1",
-                                           "mtgoxHigh" : "$" + high.toString(),
-                                           "mtgoxLow" : "$" + low.toString(),
-                                           "mtgoxLast" : "$" + last.toString()
+                                           "mtgoxHigh" : high.toString(),
+                                           "mtgoxLow" : low.toString(),
+                                           "mtgoxLast" : last.toString()
                                           });
 
                 } else {
