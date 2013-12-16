@@ -3,7 +3,7 @@
 /* #define statements used throughout this file for convenience. 
 */
 #define EXCHANGE_NAME_LENGTH (10) // Length, in bytes, an exchange's name can be.
-#define PRICE_FIELD_LENGTH (10) // Length, in bytes, a price field can be.
+#define PRICE_FIELD_LENGTH (15) // Length, in bytes, a price field can be.
 
 #define NUMBER_OF_EXCHANGES (3) // The number of exchanges. Increment when an exchange is added.
 #define BITSTAMP_INDEX (0) // Index in the exchage_data_list array that contains Bitstamp data.
@@ -19,25 +19,15 @@ static MenuLayer *exchange_menu;
    This list should mirror the list of appkeys found in the appinfo.json file.
 */
 enum {
-    WRIST_COIN_KEY_FETCH = 0x0, // NOT CURRENTLY USED. MAY BE USED IN THE FUTURE. MAY NOT BE.
-    WRIST_COIN_KEY_BITSTAMP = 100, // Informs the JavaScript code to fetch prices from Bitstamp.
-    WRIST_COIN_KEY_BITSTAMP_HIGH = 101, // Used by the JavaScript code to return Bitstamp's high price.
-    WRIST_COIN_KEY_BITSTAMP_LOW = 102, // Used by the JavaScript code to return Bitstamp's low price.
-    WRIST_COIN_KEY_BITSTAMP_LAST = 103, // Used by the JavaScript code to return Bitstamp's last price.
-    WRIST_COIN_KEY_BITSTAMP_ERROR = 198,
-    WRIST_COIN_KEY_BITSTAMP_ERROR_MESSAGE = 199,
-    WRIST_COIN_KEY_MTGOX = 200,
-    WRIST_COIN_KEY_MTGOX_HIGH = 201,
-    WRIST_COIN_KEY_MTGOX_LOW = 202,
-    WRIST_COIN_KEY_MTGOX_LAST = 203,
-    WRIST_COIN_KEY_MTGOX_ERROR = 298,
-    WRIST_COIN_KEY_MTGOX_ERROR_MESSAGE = 299,
-    WRIST_COIN_KEY_BTCE = 300,
-    WRIST_COIN_KEY_BTCE_HIGH = 301,
-    WRIST_COIN_KEY_BTCE_LOW = 302,
-    WRIST_COIN_KEY_BTCE_LAST = 303,
-    WRIST_COIN_KEY_BTCE_ERROR = 398,
-    WRIST_COIN_KEY_BTCE_ERROR_MESSAGE = 399,
+    WC_KEY_FETCH = 0,
+    WC_KEY_ERROR = 1,
+    WC_KEY_ERROR_MESSAGE = 2,
+    WC_KEY_LOW = 100,
+    WC_KEY_HIGH = 101,
+    WC_KEY_LAST = 102,
+    WC_KEY_BITSTAMP = 200,
+    WC_KEY_MTGOX = 201,
+    WC_KEY_BTCE = 202,
 };
 
 /* A structure to contain an exchange's information. Each exchange should have
@@ -68,9 +58,9 @@ static ExchangeData* get_data_for_exchange(int index) {
    prices from Bitcoin exchanges.
 */
 static void fetch_message(void) {
-    Tuplet bitstamp_tuplet = TupletInteger(WRIST_COIN_KEY_BITSTAMP, 1);
-    Tuplet mtgox_tuplet = TupletInteger(WRIST_COIN_KEY_MTGOX, 1);
-    Tuplet btce_tuplet = TupletInteger(WRIST_COIN_KEY_BTCE, 1);
+    Tuplet bitstamp_tuplet = TupletInteger(WC_KEY_BITSTAMP, 1);
+    Tuplet mtgox_tuplet = TupletInteger(WC_KEY_MTGOX, 1);
+    Tuplet btce_tuplet = TupletInteger(WC_KEY_BTCE, 1);
 
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
@@ -147,86 +137,55 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
     ExchangeData *exchange_data;
     const int index = cell_index->row;
 
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 140, "Row number is %d.\n", index);
+
     if ((exchange_data = get_data_for_exchange(index)) == NULL) {
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 143, "Index of %d did not return any data.\n", index);
         return;
     }
+
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 146, "Exchange name being refreshed is %s.\n", exchange_data->exchange_name);
 
     menu_cell_basic_draw(ctx, cell_layer, exchange_data->exchange_name, exchange_data->last, NULL);
 }
 
 static void in_received_handler(DictionaryIterator *received, void *context) {
-    Tuple *bitstamp_exchange = dict_find(received, WRIST_COIN_KEY_BITSTAMP);
-    Tuple *mtgox_exchange = dict_find(received, WRIST_COIN_KEY_MTGOX);
-    Tuple *btce_exchange = dict_find(received, WRIST_COIN_KEY_BTCE);
+    Tuple *bitstamp_exchange = dict_find(received, WC_KEY_BITSTAMP);
+    Tuple *mtgox_exchange = dict_find(received, WC_KEY_MTGOX);
+    Tuple *btce_exchange = dict_find(received, WC_KEY_BTCE);
 
-    // Load the prices for Bitstamp into exchange_data_list.
+    int index = 0;
+
     if (bitstamp_exchange) {
-        Tuple *error = dict_find(received, WRIST_COIN_KEY_BITSTAMP_ERROR);
-
-        if (error) {
-            set_status_to_error(BITSTAMP_INDEX);
-        } else {
-            Tuple *high = dict_find(received, WRIST_COIN_KEY_BITSTAMP_HIGH); 
-            Tuple *low = dict_find(received, WRIST_COIN_KEY_BITSTAMP_LOW);
-            Tuple *last = dict_find(received, WRIST_COIN_KEY_BITSTAMP_LAST);
-
-            if (high) {
-                strncpy(exchange_data_list[BITSTAMP_INDEX].high, high->value->cstring, PRICE_FIELD_LENGTH);
-            } 
-            if (low) {
-                strncpy(exchange_data_list[BITSTAMP_INDEX].low, low->value->cstring, PRICE_FIELD_LENGTH);
-            }
-            if (last) {
-                strncpy(exchange_data_list[BITSTAMP_INDEX].last, last->value->cstring, PRICE_FIELD_LENGTH);
-            }
-        }
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 157, "Received message for Bitstamp.\n");
+        index = BITSTAMP_INDEX;
+    } else if (mtgox_exchange) {
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 157, "Received message for Mt. Gox.\n");
+        index = MTGOX_INDEX;
+    } else if (btce_exchange) {
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 157, "Received message for BTC-e.\n");
+        index = BTCE_INDEX;
+    } else {
+        return;
     }
 
-    // Load the prices for Mt. Gox into exchange_datea_list.
-    if (mtgox_exchange) {
-        Tuple *error = dict_find(received, WRIST_COIN_KEY_MTGOX_ERROR);
- 
-        if (error) {
-            set_status_to_error(MTGOX_INDEX);
-        } else {
-            Tuple *high = dict_find(received, WRIST_COIN_KEY_MTGOX_HIGH);
-            Tuple *low = dict_find(received, WRIST_COIN_KEY_MTGOX_LOW);
-            Tuple *last = dict_find(received, WRIST_COIN_KEY_MTGOX_LAST);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 164, "Index is %d\n", index);
 
-            if (high) {
-                strncpy(exchange_data_list[MTGOX_INDEX].high, high->value->cstring, PRICE_FIELD_LENGTH);
-            }
-            if (low) {
-                strncpy(exchange_data_list[MTGOX_INDEX].low, low->value->cstring, PRICE_FIELD_LENGTH);
-            }
-            if (last) {
-                strncpy(exchange_data_list[MTGOX_INDEX].last, last->value->cstring, PRICE_FIELD_LENGTH);
-            }
-        }
+    Tuple *error = dict_find(received, WC_KEY_ERROR); 
 
-    }
+    if (error) {
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 171, "An error occurred.\n");
+        set_status_to_error(index);
+    } else {
+        Tuple *low = dict_find(received, WC_KEY_LOW);
+        Tuple *high = dict_find(received, WC_KEY_HIGH);
+        Tuple *last = dict_find(received, WC_KEY_LAST);
 
-    // Load the prices for BTC-e into exchage_date_list.
-    if (btce_exchange) {
-        Tuple *error = dict_find(received, WRIST_COIN_KEY_BTCE_ERROR);
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 177, "Low is %s.\n", low->value->cstring);
 
-        if (error) {
-            set_status_to_error(BTCE_INDEX);
-        } else {
-            Tuple *high = dict_find(received, WRIST_COIN_KEY_BTCE_HIGH);
-            Tuple *low = dict_find(received, WRIST_COIN_KEY_BTCE_LOW);
-            Tuple *last = dict_find(received, WRIST_COIN_KEY_BTCE_LAST);
-
-            if (high) {
-                strncpy(exchange_data_list[BTCE_INDEX].high, high->value->cstring, PRICE_FIELD_LENGTH);
-            }
-            if (low) {
-                strncpy(exchange_data_list[BTCE_INDEX].low, low->value->cstring, PRICE_FIELD_LENGTH);
-            }
-            if (last) {
-                strncpy(exchange_data_list[BTCE_INDEX].last, last->value->cstring,PRICE_FIELD_LENGTH);
-            }
-        }
+        strncpy(exchange_data_list[index].low, low->value->cstring, PRICE_FIELD_LENGTH);
+        strncpy(exchange_data_list[index].high, high->value->cstring, PRICE_FIELD_LENGTH);
+        strncpy(exchange_data_list[index].last, last->value->cstring, PRICE_FIELD_LENGTH);
     }
 
     menu_layer_reload_data(exchange_menu);
