@@ -20,10 +20,10 @@ static MenuLayer *exchange_menu;
 */
 enum {
     WC_KEY_FETCH = 0,
-    WC_KEY_ERROR = 1,
-    WC_KEY_ERROR_MESSAGE = 2,
-    WC_KEY_READY_FOR_MESSAGE = 3,
-    WC_KEY_EMPTY_MESSAGE_QUEUE = 4,
+    WC_KEY_EXCHANGE = 1,
+    WC_KEY_ERROR = 2,
+    WC_KEY_ERROR_MESSAGE = 3,
+    WC_KEY_RESEND_FAILED = 4,
     WC_KEY_LOW = 100,
     WC_KEY_HIGH = 101,
     WC_KEY_LAST = 102,
@@ -35,11 +35,19 @@ enum {
 /* A structure to contain an exchange's information. Each exchange should have
    one struct whose index is based off of the above #define statements.
 */
+/*
 typedef struct {
     char exchange_name[EXCHANGE_NAME_LENGTH];
     char high[PRICE_FIELD_LENGTH];
     char low[PRICE_FIELD_LENGTH];
     char last[PRICE_FIELD_LENGTH];
+} ExchangeData;
+*/
+typedef struct {
+    char exchange_name[EXCHANGE_NAME_LENGTH];
+    int32_t high;
+    int32_t low;
+    int32_t last; 
 } ExchangeData;
 
 static ExchangeData exchange_data_list[NUMBER_OF_EXCHANGES];
@@ -60,9 +68,7 @@ static ExchangeData* get_data_for_exchange(int index) {
    prices from Bitcoin exchanges.
 */
 static void fetch_message(void) {
-    Tuplet bitstamp_tuplet = TupletInteger(WC_KEY_BITSTAMP, 1);
-    Tuplet mtgox_tuplet = TupletInteger(WC_KEY_MTGOX, 1);
-    Tuplet btce_tuplet = TupletInteger(WC_KEY_BTCE, 1);
+    Tuplet fetch = TupletInteger(WC_KEY_FETCH, 1);
 
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
@@ -71,11 +77,24 @@ static void fetch_message(void) {
       return;
     }
 
-    dict_write_tuplet(iter, &bitstamp_tuplet);
-    dict_write_tuplet(iter, &mtgox_tuplet);
-    dict_write_tuplet(iter, &btce_tuplet);
+    dict_write_tuplet(iter, &fetch);
     dict_write_end(iter);
 
+    app_message_outbox_send();
+}
+
+static void fetch_failed_messages(void) {
+    Tuplet failed_message = TupletInteger(WC_KEY_RESEND_FAILED, 1);
+
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+
+    if (iter == NULL) {
+        return;
+    }
+
+    dict_write_tuplet(iter, &failed_message);
+    dict_write_end(iter);
     app_message_outbox_send();
 }
 
@@ -84,7 +103,8 @@ static void fetch_message(void) {
 */
 static void set_status_to_loading(void) {
     for (int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
-        strncpy(exchange_data_list[i].last, "Loading...\0", PRICE_FIELD_LENGTH);
+        exchange_data_list[i].last = 666;
+//        strncpy(exchange_data_list[i].last, "Loading...\0", PRICE_FIELD_LENGTH);
     }
 
     menu_layer_reload_data(exchange_menu);
@@ -94,7 +114,8 @@ static void set_status_to_loading(void) {
    indicate an error occurring when trying to fetch data from an exchange.
 */
 static void set_status_to_error(int index) {
-    strncpy(exchange_data_list[index].last, "Error...\0", PRICE_FIELD_LENGTH);
+    exchange_data_list[index].last = 666;
+//    strncpy(exchange_data_list[index].last, "Error...\0", PRICE_FIELD_LENGTH);
 
     menu_layer_reload_data(exchange_menu);
 }
@@ -118,7 +139,7 @@ static void out_sent_handler(DictionaryIterator *sent, void *context) {
 }
 
 static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 114, "An error occurred while trying to send data to the phone.\n");
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 114, "ERROR: error %d occurred while trying to send data to the phone.\n", reason);
 }
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
@@ -140,66 +161,59 @@ static uint16_t get_num_rows_callback(struct MenuLayer *menu_layer, uint16_t sec
 }
 
 static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_index, void *data) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 168, "Entered draw_row_callback.");
     ExchangeData *exchange_data;
     const int index = cell_index->row;
-
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 140, "Row number is %d.\n", index);
+    char last[PRICE_FIELD_LENGTH];
 
     if ((exchange_data = get_data_for_exchange(index)) == NULL) {
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 143, "Index of %d did not return any data.\n", index);
         return;
     }
+    
+//    float price = exchange_data->last / 100.0;
+    int32_t characteristic = exchange_data->last / 100;
+    int32_t mantissa = exchange_data->last - (characteristic * 100);
+    snprintf(last, PRICE_FIELD_LENGTH, "$ %ld.%ld", characteristic, mantissa); 
 
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 146, "Exchange name being refreshed is %s.\n", exchange_data->exchange_name);
-
-    menu_cell_basic_draw(ctx, cell_layer, exchange_data->exchange_name, exchange_data->last, NULL);
+    menu_cell_basic_draw(ctx, cell_layer, exchange_data->exchange_name, last, NULL);
 }
 
 static void in_received_handler(DictionaryIterator *received, void *context) {
-    Tuple *bitstamp_exchange = dict_find(received, WC_KEY_BITSTAMP);
-    Tuple *mtgox_exchange = dict_find(received, WC_KEY_MTGOX);
-    Tuple *btce_exchange = dict_find(received, WC_KEY_BTCE);
-
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 183, "Entered in_received_handler.");
+    Tuple *exchange = dict_find(received, WC_KEY_EXCHANGE);
+    Tuple *low = dict_find(received, WC_KEY_LOW);
+    Tuple *high = dict_find(received, WC_KEY_HIGH);
+    Tuple *last = dict_find(received, WC_KEY_LAST);
     int index = 0;
 
-    if (bitstamp_exchange) {
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 157, "Received message for Bitstamp.\n");
-        index = BITSTAMP_INDEX;
-    } else if (mtgox_exchange) {
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 157, "Received message for Mt. Gox.\n");
-        index = MTGOX_INDEX;
-    } else if (btce_exchange) {
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 157, "Received message for BTC-e.\n");
-        index = BTCE_INDEX;
+    if (exchange) {
+        index = exchange->value->int32;
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 192, "Index is %d.", index);
     } else {
-        return;
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 193, "Didn't receive exchange.");
     }
 
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 164, "Index is %d\n", index);
-
-    Tuple *error = dict_find(received, WC_KEY_ERROR); 
-
-    if (error) {
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 171, "An error occurred.\n");
-        set_status_to_error(index);
-    } else {
-        Tuple *low = dict_find(received, WC_KEY_LOW);
-        Tuple *high = dict_find(received, WC_KEY_HIGH);
-        Tuple *last = dict_find(received, WC_KEY_LAST);
-
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 177, "Low is %s.\n", low->value->cstring);
-
-        strncpy(exchange_data_list[index].low, low->value->cstring, PRICE_FIELD_LENGTH);
-        strncpy(exchange_data_list[index].high, high->value->cstring, PRICE_FIELD_LENGTH);
-        strncpy(exchange_data_list[index].last, last->value->cstring, PRICE_FIELD_LENGTH);
+    if (low) {
+        exchange_data_list[index].low = low->value->int32;
     }
+
+    if (high) {
+        exchange_data_list[index].high = high->value->int32;
+    }
+
+    if (last) {
+        exchange_data_list[index].last = last->value->int32;
+    }
+
+//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 191, "Values for %s are: %ld, %ld, %ld\n", exchange_data_list->exchange_name, exchange_data_list[index].low, exchange_data_list[index].high, exchange_data_list[index].last);
 
     menu_layer_reload_data(exchange_menu);
 }
 
 static void in_dropped_handler(AppMessageResult reason, void *context) {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 195, "An error occurred while trying to receive data from the phone.\n");
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 196, "The returned error was %d.\n", reason);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 195, "ERROR: error %d occurred while trying to receive data from the phone.\n", reason);
+    psleep(500);
+    fetch_failed_messages();
 }
 
 static void click_config_provider(void *context) {
@@ -217,9 +231,13 @@ static void window_load(Window *window) {
     strncpy(exchange_data_list[BTCE_INDEX].exchange_name, "BTC-e\0", EXCHANGE_NAME_LENGTH);
 
     for(int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
-        strncpy(exchange_data_list[i].high, "$0.00\0", PRICE_FIELD_LENGTH);
-        strncpy(exchange_data_list[i].low, "$0.00\0", PRICE_FIELD_LENGTH);
-        strncpy(exchange_data_list[i].last, "$0.00\0", PRICE_FIELD_LENGTH);
+        exchange_data_list[i].low = 666;
+        exchange_data_list[i].high = 666;
+        exchange_data_list[i].last = 666;
+
+//        strncpy(exchange_data_list[i].high, "$0.00\0", PRICE_FIELD_LENGTH);
+//        strncpy(exchange_data_list[i].low, "$0.00\0", PRICE_FIELD_LENGTH);
+//        strncpy(exchange_data_list[i].last, "$0.00\0", PRICE_FIELD_LENGTH);
     }
 
     exchange_menu = menu_layer_create(bounds);
