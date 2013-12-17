@@ -12,6 +12,8 @@
     "fetch": 0,
     "error" : 1,
     "errorMessage" : 2,
+    "readyForMessage" : 3,
+    "messageQueueEmpty" : 4,
     "low" : 100,
     "high" : 101,
     "last" : 102,

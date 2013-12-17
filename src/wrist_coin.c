@@ -22,6 +22,8 @@ enum {
     WC_KEY_FETCH = 0,
     WC_KEY_ERROR = 1,
     WC_KEY_ERROR_MESSAGE = 2,
+    WC_KEY_READY_FOR_MESSAGE = 3,
+    WC_KEY_EMPTY_MESSAGE_QUEUE = 4,
     WC_KEY_LOW = 100,
     WC_KEY_HIGH = 101,
     WC_KEY_LAST = 102,
@@ -84,6 +86,8 @@ static void set_status_to_loading(void) {
     for (int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
         strncpy(exchange_data_list[i].last, "Loading...\0", PRICE_FIELD_LENGTH);
     }
+
+    menu_layer_reload_data(exchange_menu);
 }
 
 /* Sets the price field for a selected exchange to "Error..." This is used to
@@ -91,6 +95,8 @@ static void set_status_to_loading(void) {
 */
 static void set_status_to_error(int index) {
     strncpy(exchange_data_list[index].last, "Error...\0", PRICE_FIELD_LENGTH);
+
+    menu_layer_reload_data(exchange_menu);
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -112,7 +118,7 @@ static void out_sent_handler(DictionaryIterator *sent, void *context) {
 }
 
 static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
-
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 114, "An error occurred while trying to send data to the phone.\n");
 }
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
@@ -192,7 +198,8 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 }
 
 static void in_dropped_handler(AppMessageResult reason, void *context) {
-
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 195, "An error occurred while trying to receive data from the phone.\n");
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 196, "The returned error was %d.\n", reason);
 }
 
 static void click_config_provider(void *context) {
