@@ -1,8 +1,9 @@
 #include <pebble.h>
+#include "exchange_data.h"
+#include "exchange_detail.h"
 
 /* #define statements used throughout this file for convenience. 
 */
-#define EXCHANGE_NAME_LENGTH (10) // Length, in bytes, an exchange's name can be.
 #define PRICE_FIELD_LENGTH (15) // Length, in bytes, a price field can be.
 
 #define NUMBER_OF_EXCHANGES (3) // The number of exchanges. Increment when an exchange is added.
@@ -31,16 +32,6 @@ enum {
     WC_KEY_MTGOX = 201,
     WC_KEY_BTCE = 202,
 };
-
-/* A structure to contain an exchange's information. Each exchange should have
-   one struct whose index is based off of the above #define statements.
-*/
-typedef struct {
-    char exchange_name[EXCHANGE_NAME_LENGTH];
-    int32_t high;
-    int32_t low;
-    int32_t last; 
-} ExchangeData;
 
 static ExchangeData exchange_data_list[NUMBER_OF_EXCHANGES];
 
@@ -133,8 +124,12 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 }
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
-    set_status_to_loading();
-    fetch_message(); 
+    ExchangeData *selected;
+    const int index = cell_index->row;
+    
+    if ((selected = get_data_for_exchange(index)) != NULL) {
+        exchange_detail_show(selected);
+    }
 }
 
 static void select_long_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
@@ -265,11 +260,7 @@ static void window_load(Window *window) {
 }
 
 static void window_unload(Window *window) {
-//  text_layer_destroy(text_layer);
-//    text_layer_destroy(bitstamp_title_text);
-//    text_layer_destroy(bitstamp_high_text);
-//    text_layer_destroy(bitstamp_low_text);
-//    text_layer_destroy(bitstamp_last_text);
+    menu_layer_destroy(exchange_menu);
 }
 
 // Register any app message handlers.
@@ -283,20 +274,21 @@ static void app_message_init(void) {
 }
 
 static void init(void) {
-  window = window_create();
-  app_message_init();
-  window_set_click_config_provider(window, click_config_provider);
-  window_set_window_handlers(window, (WindowHandlers) {
-    .load = window_load,
-    .unload = window_unload,
-  });
-  const bool animated = true;
-  window_stack_push(window, animated);
+    window = window_create();
+    app_message_init();
+    exchange_detail_init();
+    window_set_click_config_provider(window, click_config_provider);
+    window_set_window_handlers(window, (WindowHandlers) {
+        .load = window_load,
+        .unload = window_unload,
+    });
+    const bool animated = true;
+    window_stack_push(window, animated);
 }
 
 static void deinit(void) {
+    exchange_detail_deinit();
     window_destroy(window);
-    menu_layer_destroy(exchange_menu);
 }
 
 int main(void) {
