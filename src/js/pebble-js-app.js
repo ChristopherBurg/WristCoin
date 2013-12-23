@@ -36,11 +36,15 @@ function fetchBitstampPrice() {
                 var high = parseInt(response.high * 100);
                 var last = parseInt(response.last * 100);
                 var low = parseInt(response.low * 100);
+                // Bitstamp doesn't provide an average so I calculate one.
+                var average = parseInt((high + low) / 2);
+                console.log("Bitstamp average: " + average.toString());
 
                 sendMessageToPebble({"exchange" : 0,
                                      "high" : high, 
                                      "low" : low, 
-                                     "last" : last
+                                     "last" : last,
+                                     "average" : average
                                     });
 
             } else {
@@ -94,6 +98,7 @@ function fetchMtGoxPrice() {
                     var high = parseInt(response.data.high.value * 100);
                     var low = parseInt(response.data.low.value * 100);
                     var last = parseInt(response.data.last.value * 100);
+                    var average = parseInt(response.data.avg.value * 100);
 
                     console.log("High: " + high);
                     console.log("Low: " + low);
@@ -102,7 +107,8 @@ function fetchMtGoxPrice() {
                     sendMessageToPebble({"exchange" : 1,
                                          "high" : high,
                                          "low" : low,
-                                         "last" : last
+                                         "last" : last,
+                                         "average" : average
                                         });
 
                 } else {
@@ -165,17 +171,13 @@ function fetchBtcePrice() {
                 var high = parseInt(response.ticker.high * 100);
                 var low = parseInt(response.ticker.low * 100);
                 var last = parseInt(response.ticker.last * 100);
-/*
-                addMessageToQueue({"btce" : "1",
-                                   "high" : "$" + high.toString(),
-                                   "low" : "$" + low.toString(),
-                                   "last" : "$"+ last.toString()
-                                  });
-*/
+                var average = parseInt(response.ticker.avg * 100);
+
                 sendMessageToPebble({"exchange" : 2,
                                      "high" : high,
                                      "low" : low,
-                                     "last" : last
+                                     "last" : last,
+                                     "average" : average
                                     });
 
             } else {

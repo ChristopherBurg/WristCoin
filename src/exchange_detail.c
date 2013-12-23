@@ -8,10 +8,13 @@ static TextLayer *high_label;
 static TextLayer *high_text;
 static TextLayer *last_label;
 static TextLayer *last_text;
+static TextLayer *average_label;
+static TextLayer *average_text;
 
 static char low[15];
 static char high[15];
 static char last[15];
+static char average[15];
 
 static ExchangeData *exchange_data;
 
@@ -55,6 +58,15 @@ static void window_load(Window *window) {
     last_text = text_layer_create((GRect) { .origin = { half_screen, 90 }, .size = { half_screen, 20 } });
     text_layer_set_text(last_text, last);
     layer_add_child(window_layer, text_layer_get_layer(last_text));
+
+    // Label and text for the average value.
+    average_label = text_layer_create((GRect) { .origin = { 0, 110 }, .size = { half_screen, 20 } });
+    text_layer_set_text(average_label, "Average:");
+    layer_add_child(window_layer, text_layer_get_layer(average_label));
+
+    average_text = text_layer_create((GRect) { .origin = { half_screen, 110 }, .size = { half_screen, 20 } });
+    text_layer_set_text(average_text, average);
+    layer_add_child(window_layer, text_layer_get_layer(average_text));
 }
 
 static void window_unload(Window *window) {
@@ -71,6 +83,7 @@ static void window_appear(Window *window) {
     exchange_data_display_as_currency(low, 15, exchange_data->low);
     exchange_data_display_as_currency(high, 15, exchange_data->high);
     exchange_data_display_as_currency(last, 15, exchange_data->last);
+    exchange_data_display_as_currency(average, 15, exchange_data->average);
 }
 
 void exchange_detail_init(void) {

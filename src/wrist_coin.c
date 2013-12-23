@@ -28,6 +28,7 @@ enum {
     WC_KEY_LOW = 100,
     WC_KEY_HIGH = 101,
     WC_KEY_LAST = 102,
+    WC_KEY_AVERAGE = 103,
     WC_KEY_BITSTAMP = 200,
     WC_KEY_MTGOX = 201,
     WC_KEY_BTCE = 202,
@@ -181,6 +182,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
     Tuple *low = dict_find(received, WC_KEY_LOW);
     Tuple *high = dict_find(received, WC_KEY_HIGH);
     Tuple *last = dict_find(received, WC_KEY_LAST);
+    Tuple *average = dict_find(received, WC_KEY_AVERAGE);
     int index = 0;
 
     if (exchange) {
@@ -199,6 +201,9 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 
     if (last) {
         exchange_data_list[index].last = last->value->int32;
+    }
+    if (average) {
+        exchange_data_list[index].average = average->value->int32;
     }
 
     menu_layer_reload_data(exchange_menu);

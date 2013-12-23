@@ -12,6 +12,9 @@ typedef struct {
     int32_t high;
     int32_t low;
     int32_t last;
+    int32_t average;
+    int32_t buy;
+    int32_t sell;
 } ExchangeData;
 
 /* Takes an integer value, creates a decimal string representation, and copies
