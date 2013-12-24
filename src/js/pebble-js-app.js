@@ -1,5 +1,3 @@
-var failedMessageQueue = [];
-
 Pebble.addEventListener("ready",
     function(e) {
         console.log("Wrist Coin is ready.");
@@ -13,7 +11,7 @@ function sendMessageToPebble(message) {
 
     var errorHandler = function(event) {
         console.log("Failed to send " + event.data.transactionId + " to Pebble.");
-        failedMessageQueue.push(message);
+        setTimeout(sendMessageToPebble(message), 1000);
     }
 
     console.log("Sending message to Pebble");
@@ -210,20 +208,6 @@ Pebble.addEventListener("appmessage",
         console.log("Received a message from the watch.");
         console.log(e.payload.exchange);
 
-/*
-        if (e.payload.exchange == 0) {
-            console.log("Received request to fetch Bitstamp prices.");
-            fetchBitstampPrice();
-        }
-        if (e.payload.exchange == 1) {
-            console.log("Received request to fetch Mt. Gox prices.");
-            fetchMtGoxPrice();
-        }
-        if (e.payload.exchange == 2) {
-            console.log("Received request to fetch BTC-e prices.");
-            fetchBtcePrice();
-        }
-*/
         if (e.payload.fetch) {
             console.log("Received request to fetch prices from exchanges.");
             fetchBitstampPrice();

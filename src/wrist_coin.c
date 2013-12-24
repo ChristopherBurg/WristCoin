@@ -211,8 +211,8 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 
 static void in_dropped_handler(AppMessageResult reason, void *context) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 195, "ERROR: error %d occurred while trying to receive data from the phone.\n", reason);
-    psleep(500);
-    fetch_failed_messages();
+//    psleep(500);
+//    fetch_failed_messages();
 }
 
 static void click_config_provider(void *context) {
