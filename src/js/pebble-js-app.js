@@ -9,8 +9,17 @@ function sendMessageToPebble(message) {
         console.log("Successfully sent " + event.data.transactionId + " to Pebble.");
     }
 
+    /* The Pebble can only process one message at a time. Since message come in
+       as they arrive from the exchange they can oftentimes send before a 
+       previous message has complete processing. To work around this any
+       message that fails to send will cause the application to wait one second
+       for the message buffer to clear before resending the message.
+
+       It's not pretty or elegant but it works.
+    */
     var errorHandler = function(event) {
         console.log("Failed to send " + event.data.transactionId + " to Pebble.");
+        console.log("Error message for " + event.data.transactionId + " was " + event.error + ".");
         setTimeout(sendMessageToPebble(message), 1000);
     }
 
@@ -36,28 +45,30 @@ function fetchBitstampPrice() {
                 var low = parseInt(response.low * 100);
                 // Bitstamp doesn't provide an average so I calculate one.
                 var average = parseInt((high + low) / 2);
+                var buy = parseInt(response.bid * 100);
+                var sell = parseInt(response.ask * 100);
                 console.log("Bitstamp average: " + average.toString());
 
                 sendMessageToPebble({"exchange" : 0,
                                      "high" : high, 
                                      "low" : low, 
                                      "last" : last,
-                                     "average" : average
+                                     "average" : average,
+                                     "buy" : buy,
+                                     "sell" : sell
                                     });
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status + " instead.");
-                addMessageToQueue({"bitstamp" : "1",
-                                   "error" : "1",
-                                   "errorMessage" : "Failed to get response from Bitstamp server."
-                                  });
+                sendMessageToPebble({"exchange" : 0,
+                                     "error" : 0
+                                    });
             }
         } else {
             console.log("Didn't receieve ready status of 4. Receieved " + req.readyStatus + " instead.");
-            addMessageToQueue({"bitstamp" : "1",
-                               "error" : "1",
-                               "errorMessage" : "Failed to connect to Bitstamp server."
-                              });
+            sendMessageToPebble({"exchange" : 0,
+                                 "error" : 1
+                                });
         }
     }
 
@@ -97,6 +108,8 @@ function fetchMtGoxPrice() {
                     var low = parseInt(response.data.low.value * 100);
                     var last = parseInt(response.data.last.value * 100);
                     var average = parseInt(response.data.avg.value * 100);
+                    var buy = parseInt(response.data.buy.value * 100);
+                    var sell = parseInt(response.data.sell.value * 100);
 
                     console.log("High: " + high);
                     console.log("Low: " + low);
@@ -106,31 +119,30 @@ function fetchMtGoxPrice() {
                                          "high" : high,
                                          "low" : low,
                                          "last" : last,
-                                         "average" : average
+                                         "average" : average,
+                                         "buy" : buy,
+                                         "sell" : sell
                                         });
 
                 } else {
                     console.log("Mt. Gox API didn't return success. Received " + response.success.toString() + " instead.");
-                    addMessageToQueue({"mtgox" : "1",
-                                       "error" : "1",
-                                       "errorMessage" : "Recived bad response from Mt. Gox server."
-                                      });
+                    sendMessageToPebble({"exchange" : 1,
+                                         "error" : 2
+                                        });
                 }
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
-                addMessageToQueue({"mtgox" : "1",
-                                   "error" : "1",
-                                   "errorMessage" : "Failed to get response from Mt. Gox server."
-                                  });
+                sendMessageToPebble({"exchange" : 1,
+                                     "error" : 0
+                                    });
             }
 
         } else {
             console.log("Didn't receieve ready status of 4. Received " + req.readyState.toString() + " instead.");
-            addMessageToQueue({"mtgox" : "1",
-                               "error" : "1",
-                               "errorMessage" : "Failed to connect to Mt. Gox server."
-                              });
+            sendMessageToPebble({"exchange" : 1,
+                                 "error" : 1
+                                });
         }
 
     }
@@ -170,27 +182,29 @@ function fetchBtcePrice() {
                 var low = parseInt(response.ticker.low * 100);
                 var last = parseInt(response.ticker.last * 100);
                 var average = parseInt(response.ticker.avg * 100);
+                var buy = parseInt(response.ticker.buy * 100);
+                var sell = parseInt(response.ticker.sell * 100);
 
                 sendMessageToPebble({"exchange" : 2,
                                      "high" : high,
                                      "low" : low,
                                      "last" : last,
-                                     "average" : average
+                                     "average" : average,
+                                     "buy" : buy,
+                                     "sell" : sell
                                     });
 
             } else {
                 console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
-                addMessageToQueue({"btce" : "1",
-                                   "error" : "1",
-                                   "errorMessage" : "Failed to get response from BTC-e server."
-                                  });
+                sendMessageToPebble({"exchange" : 2,
+                                     "error" : 0
+                                    });
             }
         } else {
             console.log("Didn't received ready status of 4. Received " + req.readyState.toString() + " instead.");
-            addMessageToQueue({"btce" : "1",
-                               "error" : "1",
-                               "errorMessage" : "Failed to connect to BTC-e server."
-                              });
+            sendMessageToPebble({"exchange" : 2,
+                                 "error" : 1
+                                });
         }
     }
 
@@ -213,13 +227,6 @@ Pebble.addEventListener("appmessage",
             fetchBitstampPrice();
             fetchMtGoxPrice();
             fetchBtcePrice();
-        }
-        if (e.payload.resendFailed) {
-            console.log("Pebble asked me to resend failed messages.");
-            while (failedMessageQueue.length > 0) {
-                var message = failedMessageQueue.shift();
-                sendMessageToPebble(message); 
-            }
         }
     }
 );

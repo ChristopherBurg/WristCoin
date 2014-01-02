@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "exchange_data.h"
 #include "exchange_detail.h"
+#include "errors.h"
 
 /* #define statements used throughout this file for convenience. 
 */
@@ -24,15 +25,26 @@ enum {
     WC_KEY_EXCHANGE = 1,
     WC_KEY_ERROR = 2,
     WC_KEY_ERROR_MESSAGE = 3,
-    WC_KEY_RESEND_FAILED = 4,
     WC_KEY_LOW = 100,
     WC_KEY_HIGH = 101,
     WC_KEY_LAST = 102,
     WC_KEY_AVERAGE = 103,
+    WC_KEY_BUY = 104,
+    WC_KEY_SELL = 105,
     WC_KEY_BITSTAMP = 200,
     WC_KEY_MTGOX = 201,
     WC_KEY_BTCE = 202,
 };
+
+/* This typedef is here due to a consideration to create a status field to
+   decide what the menu displays instead of using whatever value is in the
+   ExchangeData.last field.
+*/
+typedef struct {
+    ExchangeData *exchange_data;
+    int32_t status;
+    int32_t error;
+} ExchangeDataList;
 
 static ExchangeData exchange_data_list[NUMBER_OF_EXCHANGES];
 
@@ -46,40 +58,6 @@ static ExchangeData* get_data_for_exchange(int index) {
     }
 
     return &exchange_data_list[index];
-}
-
-/* Asks the JavaScript code loaded on the smartphone's Pebble app to fetch
-   prices from Bitcoin exchanges.
-*/
-static void fetch_message(void) {
-    Tuplet fetch = TupletInteger(WC_KEY_FETCH, 1);
-
-    DictionaryIterator *iter;
-    app_message_outbox_begin(&iter);
-
-    if (iter == NULL) {
-      return;
-    }
-
-    dict_write_tuplet(iter, &fetch);
-    dict_write_end(iter);
-
-    app_message_outbox_send();
-}
-
-static void fetch_failed_messages(void) {
-    Tuplet failed_message = TupletInteger(WC_KEY_RESEND_FAILED, 1);
-
-    DictionaryIterator *iter;
-    app_message_outbox_begin(&iter);
-
-    if (iter == NULL) {
-        return;
-    }
-
-    dict_write_tuplet(iter, &failed_message);
-    dict_write_end(iter);
-    app_message_outbox_send();
 }
 
 /* Sets the price fields to "Loading..." so the displayed information read
@@ -100,6 +78,25 @@ static void set_status_to_error(int index) {
     exchange_data_list[index].last = -2;
 
     menu_layer_reload_data(exchange_menu);
+}
+
+/* Asks the JavaScript code loaded on the smartphone's Pebble app to fetch
+   prices from Bitcoin exchanges.
+*/
+static void fetch_message(void) {
+    Tuplet fetch = TupletInteger(WC_KEY_FETCH, 1);
+
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+
+    if (iter == NULL) {
+        return;
+    }
+
+    dict_write_tuplet(iter, &fetch);
+    dict_write_end(iter);
+
+    app_message_outbox_send();
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -126,9 +123,17 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
     ExchangeData *selected;
+    const int32_t last = 0;
     const int index = cell_index->row;
     
-    if ((selected = get_data_for_exchange(index)) != NULL) {
+    if ((selected = get_data_for_exchange(index)) == NULL) {
+        return;
+    }
+
+    /* If the status is showing "Loading...", "Error...", or any other status
+       there's no reason to display the extended data window.
+    */
+    if (selected->last >= 0) {
         exchange_detail_show(selected);
     }
 }
@@ -179,31 +184,55 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
 
 static void in_received_handler(DictionaryIterator *received, void *context) {
     Tuple *exchange = dict_find(received, WC_KEY_EXCHANGE);
+    Tuple *error = dict_find(received, WC_KEY_ERROR);
     Tuple *low = dict_find(received, WC_KEY_LOW);
     Tuple *high = dict_find(received, WC_KEY_HIGH);
     Tuple *last = dict_find(received, WC_KEY_LAST);
     Tuple *average = dict_find(received, WC_KEY_AVERAGE);
+    Tuple *buy = dict_find(received, WC_KEY_BUY);
+    Tuple *sell = dict_find(received, WC_KEY_SELL);
     int index = 0;
 
     if (exchange) {
         index = exchange->value->int32;
+    
+        if (error) {
+            app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 198, "Received an error from the phone.");
+            set_status_to_error(index);
+        } else {
+//            Tuple *low = dict_find(received, WC_KEY_LOW);
+//            Tuple *high = dict_find(received, WC_KEY_HIGH);
+//            Tuple *last = dict_find(received, WC_KEY_LAST);
+//            Tuple *average = dict_find(received, WC_KEY_AVERAGE);
+//            Tuple *buy = dict_find(received, WC_KEY_BUY);
+//            Tuple *sell = dict_find(received, WC_KEY_SELL);
+
+            if (low) {
+                exchange_data_list[index].low = low->value->int32;
+            }
+
+            if (high) {
+                exchange_data_list[index].high = high->value->int32;
+            }
+
+            if (last) {
+                exchange_data_list[index].last = last->value->int32;
+            }
+
+            if (average) {
+                exchange_data_list[index].average = average->value->int32;
+            }
+
+            if (buy) {
+                exchange_data_list[index].buy = buy->value->int32;
+            }
+
+            if (sell) {
+                exchange_data_list[index].sell = sell->value->int32;
+            }
+        }
     } else {
         app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 193, "Didn't receive exchange.");
-    }
-
-    if (low) {
-        exchange_data_list[index].low = low->value->int32;
-    }
-
-    if (high) {
-        exchange_data_list[index].high = high->value->int32;
-    }
-
-    if (last) {
-        exchange_data_list[index].last = last->value->int32;
-    }
-    if (average) {
-        exchange_data_list[index].average = average->value->int32;
     }
 
     menu_layer_reload_data(exchange_menu);
@@ -229,11 +258,13 @@ static void window_load(Window *window) {
     strncpy(exchange_data_list[MTGOX_INDEX].exchange_name, "Mt. Gox\0", EXCHANGE_NAME_LENGTH);
     strncpy(exchange_data_list[BTCE_INDEX].exchange_name, "BTC-e\0", EXCHANGE_NAME_LENGTH);
 
-    for(int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
-        exchange_data_list[i].low = -1;
-        exchange_data_list[i].high = -1;
-        exchange_data_list[i].last = -1;
-    }
+//    for(int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
+//        exchange_data_list[i].low = -1;
+//        exchange_data_list[i].high = -1;
+//        exchange_data_list[i].last = -1;
+//    }
+
+    set_status_to_loading();
 
     exchange_menu = menu_layer_create(bounds);
     menu_layer_set_callbacks(exchange_menu, NULL, (MenuLayerCallbacks) {
@@ -260,7 +291,7 @@ static void app_message_init(void) {
     app_message_register_inbox_received(in_received_handler);
     app_message_register_inbox_dropped(in_dropped_handler);
 
-    app_message_open(64, 64);
+    app_message_open(APP_MESSAGE_OUTBOX_SIZE_MINIMUM, APP_MESSAGE_INBOX_SIZE_MINIMUM);
 }
 
 static void init(void) {

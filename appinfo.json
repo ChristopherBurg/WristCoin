@@ -18,6 +18,8 @@
     "high" : 101,
     "last" : 102,
     "average" : 103,
+    "buy" : 104,
+    "sell" : 105,
     "bitstamp" : 200,
     "mtgox" : 201,
     "btce" : 202
