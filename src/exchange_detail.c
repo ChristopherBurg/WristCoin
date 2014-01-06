@@ -129,7 +129,18 @@ static void window_load(Window *window) {
 static void window_unload(Window *window) {
     scroll_layer_destroy(scroll_layer);
     text_layer_destroy(exchange_name_text);
+    text_layer_destroy(low_label);
+    text_layer_destroy(low_text);
+    text_layer_destroy(high_label);
+    text_layer_destroy(high_text);
+    text_layer_destroy(last_label);
     text_layer_destroy(last_text);
+    text_layer_destroy(average_label);
+    text_layer_destroy(average_text);
+    text_layer_destroy(buy_label);
+    text_layer_destroy(buy_text);
+    text_layer_destroy(sell_label);
+    text_layer_destroy(sell_text);
 }
 
 static void window_appear(Window *window) {
