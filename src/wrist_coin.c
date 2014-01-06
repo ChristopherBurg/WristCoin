@@ -258,14 +258,6 @@ static void window_load(Window *window) {
     strncpy(exchange_data_list[MTGOX_INDEX].exchange_name, "Mt. Gox\0", EXCHANGE_NAME_LENGTH);
     strncpy(exchange_data_list[BTCE_INDEX].exchange_name, "BTC-e\0", EXCHANGE_NAME_LENGTH);
 
-//    for(int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
-//        exchange_data_list[i].low = -1;
-//        exchange_data_list[i].high = -1;
-//        exchange_data_list[i].last = -1;
-//    }
-
-    set_status_to_loading();
-
     exchange_menu = menu_layer_create(bounds);
     menu_layer_set_callbacks(exchange_menu, NULL, (MenuLayerCallbacks) {
         .get_cell_height = (MenuLayerGetCellHeightCallback) get_cell_height_callback,
@@ -276,6 +268,8 @@ static void window_load(Window *window) {
     });
     menu_layer_set_click_config_onto_window(exchange_menu, window);
     layer_add_child(window_layer, menu_layer_get_layer(exchange_menu));
+
+    set_status_to_loading();
 
     fetch_message();
 }
