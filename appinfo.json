@@ -20,6 +20,7 @@
     "average" : 103,
     "buy" : 104,
     "sell" : 105,
+    "volume" : 106,
     "bitstamp" : 200,
     "mtgox" : 201,
     "btce" : 202

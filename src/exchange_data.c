@@ -1,6 +1,6 @@
 #include "exchange_data.h"
 
-void exchange_data_display_as_currency(char *dest, int length, int value) {
+void exchange_data_display_as_currency(char *dest, int length, int32_t value) {
     int32_t characteristic = 0;
     int32_t mantissa = 0;
 
@@ -19,5 +19,17 @@ void exchange_data_display_as_currency(char *dest, int length, int value) {
     characteristic = value / 100;
     mantissa = value - (characteristic * 100);
     snprintf(dest, length, "$ %ld.%02ld", characteristic, mantissa);
+}
+
+void exchange_data_display_as_bitcoin(char *dest, int length, int64_t value) {
+    int64_t characteristic = 0;
+    int64_t mantissa = 0;    
+
+    characteristic = value / 100000000;
+    mantissa = value - (characteristic * 100000000);
+
+    app_log(APP_LOG_LEVEL_DEBUG, "exchange_data.c", 31, "value: %lld\ncharacteristic: %lld\nmantissa: %lld", value, characteristic, mantissa);
+
+    snprintf(dest, length, "%lld.%08lld", characteristic, mantissa);
 }
 

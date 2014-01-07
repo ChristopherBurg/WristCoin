@@ -16,6 +16,8 @@ static TextLayer *buy_label;
 static TextLayer *buy_text;
 static TextLayer *sell_label;
 static TextLayer *sell_text;
+static TextLayer *volume_label;
+static TextLayer *volume_text;
 
 static char low[15];
 static char high[15];
@@ -23,6 +25,7 @@ static char last[15];
 static char average[15];
 static char buy[15];
 static char sell[15];
+static char volume[25];
 
 static ExchangeData *exchange_data;
 
@@ -36,7 +39,7 @@ static void window_load(Window *window) {
     int half_screen = (bounds.size.w / 2);
 
     scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
-    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 146));
+    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 176));
     layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
 
     exchange_name_text = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
@@ -123,6 +126,17 @@ static void window_load(Window *window) {
 //    layer_add_child(window_layer, text_layer_get_layer(sell_text));
     scroll_layer_add_child(scroll_layer, text_layer_get_layer(sell_text));
 
+    // Label and text for the volume.
+    volume_label = text_layer_create((GRect) { .origin = { 0, 132 }, .size = { half_screen, 22 } });
+    text_layer_set_font(volume_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+    text_layer_set_text(volume_label, "Volume:");
+    scroll_layer_add_child(scroll_layer, text_layer_get_layer(volume_label));
+
+    volume_text = text_layer_create((GRect) { .origin = { 10, 154 }, .size = { bounds.size.w - 10, 22 } });
+    text_layer_set_font(volume_text, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+    text_layer_set_text(volume_text, volume);
+    scroll_layer_add_child(scroll_layer, text_layer_get_layer(volume_text));
+
     scroll_layer_set_click_config_onto_window(scroll_layer, window);
 }
 
@@ -141,6 +155,8 @@ static void window_unload(Window *window) {
     text_layer_destroy(buy_text);
     text_layer_destroy(sell_label);
     text_layer_destroy(sell_text);
+    text_layer_destroy(volume_label);
+    text_layer_destroy(volume_text);
 }
 
 static void window_appear(Window *window) {
@@ -155,6 +171,7 @@ static void window_appear(Window *window) {
     exchange_data_display_as_currency(average, 15, exchange_data->average);
     exchange_data_display_as_currency(buy, 15, exchange_data->buy);
     exchange_data_display_as_currency(sell, 15, exchange_data->sell);
+    exchange_data_display_as_bitcoin(volume, 25, exchange_data->volume);
 }
 
 void exchange_detail_init(void) {

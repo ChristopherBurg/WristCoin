@@ -1,3 +1,29 @@
+/* Takes a hexadecimal string and converts it to a byte array. This function is
+   primarily used as a way to send numbers larger than 32-bit to the Pebble.
+*/
+function convertHexStringToByteArray(string) {
+    var byte_array = new Array();
+    var i = 0;
+
+    if (string.length % 2 != 0) {
+        console.log("Odd number of bytes. Pushing: " + parseInt(string.charAt(i), 16).toString(16));
+        byte_array.push(parseInt(string.charAt(i), 16));
+        ++i;
+    }
+               
+    while (i < string.length) {
+        console.log("Substring is " + string.substr(i, 2));
+        var byte_to_push = parseInt(string.substr(i, 2), 16);
+        console.log("Pushing byte " + byte_to_push.toString(16) + " " + byte_to_push.toString(10));
+        byte_array.push(byte_to_push);
+        i += 2;
+    }
+
+    console.log(byte_array);
+
+    return byte_array;
+}
+
 Pebble.addEventListener("ready",
     function(e) {
         console.log("Wrist Coin is ready.");
@@ -38,7 +64,17 @@ function fetchBitstampPrice() {
             if (req.status == 200) {
                 console.log(req.responseText);            
 
-                var response = JSON.parse(req.responseText);
+                // Sometimes we can get unexpected results. This constitutes a
+                // "type 2" error. Please note that this try-catch block will
+                // return immediately upon error.
+                try {
+                    var response = JSON.parse(req.responseText);
+                } catch (e) {
+                    sendMessageToPebble({"exchange" : 0,
+                                         "error" : 2
+                                        });
+                    return;
+                }
 
                 var high = parseInt(response.high * 100);
                 var last = parseInt(response.last * 100);
@@ -47,7 +83,11 @@ function fetchBitstampPrice() {
                 var average = parseInt((high + low) / 2);
                 var buy = parseInt(response.bid * 100);
                 var sell = parseInt(response.ask * 100);
-                console.log("Bitstamp average: " + average.toString());
+
+                var volume = parseInt(response.volume * 100000000).toString(16);
+                var volume_bytes = convertHexStringToByteArray(volume);
+
+                console.log(volume);
 
                 sendMessageToPebble({"exchange" : 0,
                                      "high" : high, 
@@ -55,7 +95,8 @@ function fetchBitstampPrice() {
                                      "last" : last,
                                      "average" : average,
                                      "buy" : buy,
-                                     "sell" : sell
+                                     "sell" : sell,
+                                     "volume" : volume_bytes
                                     });
 
             } else {
@@ -101,7 +142,14 @@ function fetchMtGoxPrice() {
 
                 console.log(req.responseText);
 
-                var response = JSON.parse(req.responseText);
+                try {
+                    var response = JSON.parse(req.responseText);
+                } catch (e) {
+                    sendMessageToPebble({"exchange" : 1,
+                                         "error" : 2
+                                        });
+                    return;
+                }
 
                 if (response.result == "success") {
                     var high = parseInt(response.data.high.value * 100);
@@ -111,9 +159,15 @@ function fetchMtGoxPrice() {
                     var buy = parseInt(response.data.buy.value * 100);
                     var sell = parseInt(response.data.sell.value * 100);
 
-                    console.log("High: " + high);
-                    console.log("Low: " + low);
-                    console.log("Last: " + last);
+                    var volume = parseInt(response.data.vol.value_int).toString(16);
+                    var volume_bytes = convertHexStringToByteArray(volume);
+
+                    console.log(volume);
+
+//                    console.log("High: " + high);
+//                    console.log("Low: " + low);
+//                    console.log("Last: " + last);
+//                    console.log("Volume: " + volume);
 
                     sendMessageToPebble({"exchange" : 1,
                                          "high" : high,
@@ -121,7 +175,8 @@ function fetchMtGoxPrice() {
                                          "last" : last,
                                          "average" : average,
                                          "buy" : buy,
-                                         "sell" : sell
+                                         "sell" : sell,
+                                         "volume" : volume_bytes
                                         });
 
                 } else {
@@ -176,7 +231,14 @@ function fetchBtcePrice() {
 
                 console.log(req.responseText);
 
-                var response = JSON.parse(req.responseText);
+                try {
+                    var response = JSON.parse(req.responseText);
+                } catch (e) {
+                    sendMessageToPebble({"exchange" : 2,
+                                         "error" : 2
+                                        });
+                    return;
+                }
 
                 var high = parseInt(response.ticker.high * 100);
                 var low = parseInt(response.ticker.low * 100);
@@ -185,13 +247,19 @@ function fetchBtcePrice() {
                 var buy = parseInt(response.ticker.buy * 100);
                 var sell = parseInt(response.ticker.sell * 100);
 
+                var volume = parseInt(response.ticker.vol * 100000000).toString(16);
+                var volume_bytes = convertHexStringToByteArray(volume);
+
+                console.log(volume);
+
                 sendMessageToPebble({"exchange" : 2,
                                      "high" : high,
                                      "low" : low,
                                      "last" : last,
                                      "average" : average,
                                      "buy" : buy,
-                                     "sell" : sell
+                                     "sell" : sell,
+                                     "volume" : volume_bytes
                                     });
 
             } else {

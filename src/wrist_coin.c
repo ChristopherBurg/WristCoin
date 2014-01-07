@@ -31,6 +31,7 @@ enum {
     WC_KEY_AVERAGE = 103,
     WC_KEY_BUY = 104,
     WC_KEY_SELL = 105,
+    WC_KEY_VOLUME = 106,
     WC_KEY_BITSTAMP = 200,
     WC_KEY_MTGOX = 201,
     WC_KEY_BTCE = 202,
@@ -191,6 +192,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
     Tuple *average = dict_find(received, WC_KEY_AVERAGE);
     Tuple *buy = dict_find(received, WC_KEY_BUY);
     Tuple *sell = dict_find(received, WC_KEY_SELL);
+    Tuple *volume = dict_find(received, WC_KEY_VOLUME);
     int index = 0;
 
     if (exchange) {
@@ -229,6 +231,25 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 
             if (sell) {
                 exchange_data_list[index].sell = sell->value->int32;
+            }
+
+            if (volume) {
+                // Volume can often exceed the maximum size of a 32-bit
+                // integer. Since a 32-bit integer is the largest the PebbleKit
+                // JavaScript can send the volume value must be converted into 
+                // a byte array. To undo this the byte array must be "unpacked"
+                // which I'm doing here by shifting each byte into the proper
+                // position in an int64_t variable. 
+                int64_t temp = 0;
+                for (unsigned int i = 0; i < strlen(volume->value->cstring); ++i) {
+                    temp = volume->value->cstring[i];
+                    temp <<= (8 * (strlen(volume->value->cstring) - 2 - i));
+                    exchange_data_list[index].volume += temp;
+                }
+
+                app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Volume for %d is %lld.", index, exchange_data_list[index].volume);
+            } else {
+                app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 238, "Didn't receive a volume for exchange %d.", index);
             }
         }
     } else {
