@@ -241,10 +241,10 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
                 // which I'm doing here by shifting each byte into the proper
                 // position in an int64_t variable. 
                 int64_t temp = 0;
-                for (unsigned int i = 0; i < strlen(volume->value->cstring); ++i) {
-                    temp = volume->value->cstring[i];
-                    temp <<= (8 * (strlen(volume->value->cstring) - 2 - i));
-                    exchange_data_list[index].volume += temp;
+                for (unsigned int i = 0; i < volume->length; ++i) {
+                    temp = volume->value->data[i];
+                    temp <<= (8 * (volume->length - 1 - i));
+                    exchange_data_list[index].volume |= temp;
                 }
 
                 app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Volume for %d is %lld.", index, exchange_data_list[index].volume);

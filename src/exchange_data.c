@@ -28,8 +28,6 @@ void exchange_data_display_as_bitcoin(char *dest, int length, int64_t value) {
     characteristic = value / 100000000;
     mantissa = value - (characteristic * 100000000);
 
-    app_log(APP_LOG_LEVEL_DEBUG, "exchange_data.c", 31, "value: %lld\ncharacteristic: %lld\nmantissa: %lld", value, characteristic, mantissa);
-
     snprintf(dest, length, "%lld.%08lld", characteristic, mantissa);
 }
 

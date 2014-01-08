@@ -247,7 +247,7 @@ function fetchBtcePrice() {
                 var buy = parseInt(response.ticker.buy * 100);
                 var sell = parseInt(response.ticker.sell * 100);
 
-                var volume = parseInt(response.ticker.vol * 100000000).toString(16);
+                var volume = parseInt(response.ticker.vol_cur * 100000000).toString(16);
                 var volume_bytes = convertHexStringToByteArray(volume);
 
                 console.log(volume);
