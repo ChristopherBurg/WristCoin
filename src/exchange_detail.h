@@ -1,7 +1,7 @@
 #pragma once
 
 #include <pebble.h>
-#include "exchange_data.h"
+#include "exchange.h"
 
 void exchange_detail_init(void);
 

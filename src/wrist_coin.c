@@ -1,16 +1,7 @@
 #include <pebble.h>
-#include "exchange_data.h"
+#include "exchange.h"
 #include "exchange_detail.h"
 #include "errors.h"
-
-/* #define statements used throughout this file for convenience. 
-*/
-#define PRICE_FIELD_LENGTH (15) // Length, in bytes, a price field can be.
-
-#define NUMBER_OF_EXCHANGES (3) // The number of exchanges. Increment when an exchange is added.
-#define BITSTAMP_INDEX (0) // Index in the exchage_data_list array that contains Bitstamp data.
-#define MTGOX_INDEX (1) // Index in the exchange_data_list array that contians Mt. Gox data.
-#define BTCE_INDEX (2) // Index in the exchange_data_list array that contains BTC-e data.
 
 static Window *window;
 static MenuLayer *exchange_menu;
@@ -139,6 +130,9 @@ static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *
     }
 }
 
+/* Sets the status for each exchange display to "Loading..." and asks the 
+   JavaScript code to fetch prices from the exchanges again. 
+ */
 static void select_long_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
     set_status_to_loading();
     fetch_message();
@@ -152,6 +146,10 @@ static uint16_t get_num_rows_callback(struct MenuLayer *menu_layer, uint16_t sec
     return NUMBER_OF_EXCHANGES;
 }
 
+/* Reads the data for each exchange and prints the appropriate output to the 
+   screen. Generally this value will be a Bitcoin price but messages such as
+   "Loading..." and "Error..." can be dispalyed.
+ */
 static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_index, void *data) {
     ExchangeData *exchange_data;
     const int index = cell_index->row;
@@ -177,7 +175,7 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
         snprintf(last, PRICE_FIELD_LENGTH, "Error...");
         break;
     default:
-        exchange_data_display_as_currency(last, PRICE_FIELD_LENGTH, exchange_data->last);
+        format_as_dollars(last, exchange_data->last);
     }
 
     menu_cell_basic_draw(ctx, cell_layer, exchange_data->exchange_name, last, NULL);
@@ -202,13 +200,6 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
             app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 198, "Received an error from the phone.");
             set_status_to_error(index);
         } else {
-//            Tuple *low = dict_find(received, WC_KEY_LOW);
-//            Tuple *high = dict_find(received, WC_KEY_HIGH);
-//            Tuple *last = dict_find(received, WC_KEY_LAST);
-//            Tuple *average = dict_find(received, WC_KEY_AVERAGE);
-//            Tuple *buy = dict_find(received, WC_KEY_BUY);
-//            Tuple *sell = dict_find(received, WC_KEY_SELL);
-
             if (low) {
                 exchange_data_list[index].low = low->value->int32;
             }
@@ -233,24 +224,24 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
                 exchange_data_list[index].sell = sell->value->int32;
             }
 
-            if (volume) {
-                // Volume can often exceed the maximum size of a 32-bit
-                // integer. Since a 32-bit integer is the largest the PebbleKit
-                // JavaScript can send the volume value must be converted into 
-                // a byte array. To undo this the byte array must be "unpacked"
-                // which I'm doing here by shifting each byte into the proper
-                // position in an int64_t variable. 
-                int64_t temp = 0;
-                for (unsigned int i = 0; i < volume->length; ++i) {
-                    temp = volume->value->data[i];
-                    temp <<= (8 * (volume->length - 1 - i));
-                    exchange_data_list[index].volume |= temp;
-                }
+           if (volume) {
+               // Volume can often exceed the maximum size of a 32-bit
+               // integer. Since a 32-bit integer is the largest the PebbleKit
+               // JavaScript can send the volume value must be converted into 
+               // a byte array. To undo this the byte array must be "unpacked"
+               // which I'm doing here by shifting each byte into the proper
+               // position in an int64_t variable. 
+               int64_t temp = 0;
+               for (unsigned int i = 0; i < volume->length; ++i) {
+                   temp = volume->value->data[i];
+                   temp <<= (8 * (volume->length - 1 - i));
+                   exchange_data_list[index].volume |= temp;
+               }
 
                 app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Volume for %d is %lld.", index, exchange_data_list[index].volume);
-            } else {
-                app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 238, "Didn't receive a volume for exchange %d.", index);
-            }
+           } else {
+               app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 238, "Didn't receive a volume for exchange %d.", index);
+           }
         }
     } else {
         app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 193, "Didn't receive exchange.");
