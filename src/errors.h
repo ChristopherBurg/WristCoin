@@ -7,5 +7,6 @@ typedef enum {
                                          // XMLHttpRequest.status returns 
                                          // something other than four.
     WC_ERROR_EXCHANGE = 2, // The exchange API returned an error.
+    WC_ERRRO_SEND = 3, // Sending a message from the Pebble to the watch failed.
 } ErrorMessages;
 

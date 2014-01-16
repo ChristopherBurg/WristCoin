@@ -41,13 +41,36 @@ static void click_config_provider(void *context) {
 
 }
 
+/* Initializes a text layer, sets values for that text layer, and adds it as a
+   child to the main scroll layer.
+
+   layer - The text layer to initialize and add to the scroll layer.
+
+   font - The font key for the font to use.
+
+   text - The text for the label to display.
+
+   x - The x coordinate to draw the layer at.
+
+   y - The y coordinate to draw the layer at.
+ */
+static void init_text_layer_for_scroll(TextLayer *layer, const char *font, const char *text, int x, int y) {
+    Layer *window_layer = window_get_root_layer(window);
+    GRect bounds = layer_get_bounds(window_layer);
+
+    layer = text_layer_create((GRect) { .origin = { x, y }, .size = { bounds.size.w, 22 } });
+    text_layer_set_font(layer, fonts_get_system_font(font));
+    text_layer_set_text(layer, text);
+    scroll_layer_add_child(scroll_layer, text_layer_get_layer(layer));
+}
+
 static void window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
     int half_screen = (bounds.size.w / 2);
 
     scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
-    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 176));
+    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 308));
     layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
 
     exchange_name_display = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
@@ -56,81 +79,32 @@ static void window_load(Window *window) {
     layer_add_child(window_layer, text_layer_get_layer(exchange_name_display));
 
     // Label and text for the low value.
-    low_label = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { half_screen, 22 } });
-    text_layer_set_font(low_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(low_label, low_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(low_label));
-
-    low_display = text_layer_create((GRect) { .origin = { half_screen, 0 }, .size = { half_screen, 22 } });
-    text_layer_set_font(low_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(low_display, low);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(low_display));
+    init_text_layer_for_scroll(low_label, FONT_KEY_GOTHIC_18_BOLD, low_text, 0, 0);
+    init_text_layer_for_scroll(low_display, FONT_KEY_GOTHIC_18, low, 0, 22);
 
     // Label and text for the high value.
-    high_label = text_layer_create((GRect) { .origin = { 0, 22 }, .size = { half_screen, 22 } });
-    text_layer_set_font(high_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(high_label, high_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(high_label));
-
-    high_display = text_layer_create((GRect) { .origin = { half_screen, 22 }, .size = { half_screen, 22 } });
-    text_layer_set_font(high_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(high_display, high);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(high_display));
+    init_text_layer_for_scroll(high_label, FONT_KEY_GOTHIC_18_BOLD, high_text, 0, 44);
+    init_text_layer_for_scroll(high_display, FONT_KEY_GOTHIC_18, high, 0, 66);
 
     // Label and text for the last value.
-    last_label = text_layer_create((GRect) { .origin = { 0, 44 }, .size = { half_screen, 22 } });
-    text_layer_set_font(last_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(last_label, last_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(last_label));
-
-    last_display = text_layer_create((GRect) { .origin = { half_screen, 44 }, .size = { half_screen, 22 } });
-    text_layer_set_font(last_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(last_display, last);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(last_display));
+    init_text_layer_for_scroll(last_label, FONT_KEY_GOTHIC_18_BOLD, last_text, 0, 88);
+    init_text_layer_for_scroll(last_display, FONT_KEY_GOTHIC_18, last, 0, 110);
 
     // Label and text for the average value.
-    average_label = text_layer_create((GRect) { .origin = { 0, 66 }, .size = { half_screen, 22 } });
-    text_layer_set_font(average_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(average_label, average_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(average_label));
-
-    average_display = text_layer_create((GRect) { .origin = { half_screen, 66 }, .size = { half_screen, 22 } });
-    text_layer_set_font(average_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(average_display, average);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(average_display));
+    init_text_layer_for_scroll(average_label, FONT_KEY_GOTHIC_18_BOLD, average_text, 0, 132);
+    init_text_layer_for_scroll(average_display, FONT_KEY_GOTHIC_18, average, 0, 154);
 
     // Label and text for the buy value.
-    buy_label = text_layer_create((GRect) { .origin = { 0, 88 }, .size = { half_screen, 22 } });
-    text_layer_set_font(buy_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(buy_label, buy_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(buy_label));
-
-    buy_display = text_layer_create((GRect) { .origin = { half_screen, 88 }, .size = { half_screen, 22 } });
-    text_layer_set_font(buy_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(buy_display, buy);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(buy_display));
+    init_text_layer_for_scroll(buy_label, FONT_KEY_GOTHIC_18_BOLD, buy_text, 0, 176);
+    init_text_layer_for_scroll(buy_display, FONT_KEY_GOTHIC_18, buy, 0, 198);
 
     // Label and text for the sell value.
-    sell_label = text_layer_create((GRect) { .origin = { 0, 110 }, .size = { half_screen, 22 } });
-    text_layer_set_font(sell_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(sell_label, sell_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(sell_label));
-
-    sell_display = text_layer_create((GRect) { .origin = { half_screen, 110 }, .size = { half_screen, 22 } });
-    text_layer_set_font(sell_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(sell_display, sell);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(sell_display));
+    init_text_layer_for_scroll(sell_label, FONT_KEY_GOTHIC_18_BOLD, sell_text, 0, 220);
+    init_text_layer_for_scroll(sell_display, FONT_KEY_GOTHIC_18, sell, 0, 242);
 
     // Label and text for the volume.
-    volume_label = text_layer_create((GRect) { .origin = { 0, 132 }, .size = { half_screen, 22 } });
-    text_layer_set_font(volume_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-    text_layer_set_text(volume_label, volume_text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(volume_label));
-
-    volume_display = text_layer_create((GRect) { .origin = { 10, 154 }, .size = { bounds.size.w - 10, 22 } });
-    text_layer_set_font(volume_display, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_text(volume_display, volume);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(volume_display));
+    init_text_layer_for_scroll(volume_label, FONT_KEY_GOTHIC_18_BOLD, volume_text, 0, 264);
+    init_text_layer_for_scroll(volume_display, FONT_KEY_GOTHIC_18, volume, 0, 286);
 
     scroll_layer_set_click_config_onto_window(scroll_layer, window);
 }
