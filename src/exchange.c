@@ -21,6 +21,29 @@ void format_as_dollars(char *dest, int32_t value) {
     snprintf(dest, PRICE_FIELD_LENGTH, "$ %ld.%02ld", characteristic, mantissa);
 }
 
+/*
+void format_as_bitcoin_with_precision(char *dest, int64_t value, uint8_t precision) {
+    int64_t characteristic = 0;
+    int64_t mantissa = 0;    
+
+    // Bitcoin can only be divided down to eight decimal points. Therefore any
+    // precision higher than eight is useless.
+    if (precision > 8) {
+        precision = 8;
+    }
+
+    characteristic = value / 100000000;
+    mantissa = value - (characteristic * 100000000);
+    mantissa = mantissa / (10 ^ (8 - precision));
+
+    snprintf(dest, VOLUME_FIELD_LENGTH, "%lld.%lld", characteristic, mantissa);
+}
+
+void format_as_bitcoin(char *dest, int64_t value) {
+    format_as_bitcoin_with_precision(dest, value, 8);
+}
+*/
+
 void format_as_bitcoin(char *dest, int64_t value) {
     int64_t characteristic = 0;
     int64_t mantissa = 0;    

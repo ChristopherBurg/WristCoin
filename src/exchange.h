@@ -34,5 +34,7 @@ typedef struct {
 */
 void format_as_dollars(char *dest, int32_t value);
 
+//void format_as_bitcoin_with_precision(char *dest, int64_t value, uint8_t precision);
+
 void format_as_bitcoin(char *dest, int64_t value);
 

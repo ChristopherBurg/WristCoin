@@ -46,20 +46,27 @@ static void click_config_provider(void *context) {
 
    layer - The text layer to initialize and add to the scroll layer.
 
+   text - The text for the label to display.
+
    font - The font key for the font to use.
 
-   text - The text for the label to display.
+   alignment - How to align the text in the text layer.
 
    x - The x coordinate to draw the layer at.
 
    y - The y coordinate to draw the layer at.
+
+   width - How wide the text layer should be.
+
+   height - How tall the text layer should be.
  */
-static void init_text_layer_for_scroll(TextLayer *layer, const char *font, const char *text, int x, int y) {
+static void init_text_layer_for_scroll(TextLayer *layer, const char *text, const char *font, GTextAlignment alignment, int x, int y, int16_t width, int16_t height) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
 
-    layer = text_layer_create((GRect) { .origin = { x, y }, .size = { bounds.size.w, 22 } });
+    layer = text_layer_create((GRect) { .origin = { x, y }, .size = { width, height } });
     text_layer_set_font(layer, fonts_get_system_font(font));
+    text_layer_set_text_alignment(layer, alignment);
     text_layer_set_text(layer, text);
     scroll_layer_add_child(scroll_layer, text_layer_get_layer(layer));
 }
@@ -70,7 +77,7 @@ static void window_load(Window *window) {
     int half_screen = (bounds.size.w / 2);
 
     scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
-    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 308));
+    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 154));
     layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
 
     exchange_name_display = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
@@ -79,32 +86,32 @@ static void window_load(Window *window) {
     layer_add_child(window_layer, text_layer_get_layer(exchange_name_display));
 
     // Label and text for the low value.
-    init_text_layer_for_scroll(low_label, FONT_KEY_GOTHIC_18_BOLD, low_text, 0, 0);
-    init_text_layer_for_scroll(low_display, FONT_KEY_GOTHIC_18, low, 0, 22);
+    init_text_layer_for_scroll(low_label, low_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 0, half_screen, 22);
+    init_text_layer_for_scroll(low_display, low, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 0, half_screen, 22);
 
     // Label and text for the high value.
-    init_text_layer_for_scroll(high_label, FONT_KEY_GOTHIC_18_BOLD, high_text, 0, 44);
-    init_text_layer_for_scroll(high_display, FONT_KEY_GOTHIC_18, high, 0, 66);
+    init_text_layer_for_scroll(high_label, high_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 22, half_screen, 22);
+    init_text_layer_for_scroll(high_display, high, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 22, half_screen, 22);
 
     // Label and text for the last value.
-    init_text_layer_for_scroll(last_label, FONT_KEY_GOTHIC_18_BOLD, last_text, 0, 88);
-    init_text_layer_for_scroll(last_display, FONT_KEY_GOTHIC_18, last, 0, 110);
+    init_text_layer_for_scroll(last_label, last_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 44, half_screen, 22);
+    init_text_layer_for_scroll(last_display, last, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 44, half_screen, 22);
 
     // Label and text for the average value.
-    init_text_layer_for_scroll(average_label, FONT_KEY_GOTHIC_18_BOLD, average_text, 0, 132);
-    init_text_layer_for_scroll(average_display, FONT_KEY_GOTHIC_18, average, 0, 154);
+    init_text_layer_for_scroll(average_label, average_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 66, half_screen, 22);
+    init_text_layer_for_scroll(average_display, average, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 66, half_screen, 22);
 
     // Label and text for the buy value.
-    init_text_layer_for_scroll(buy_label, FONT_KEY_GOTHIC_18_BOLD, buy_text, 0, 176);
-    init_text_layer_for_scroll(buy_display, FONT_KEY_GOTHIC_18, buy, 0, 198);
+    init_text_layer_for_scroll(buy_label, buy_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 88, half_screen, 22);
+    init_text_layer_for_scroll(buy_display, buy, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 88, half_screen, 22);
 
     // Label and text for the sell value.
-    init_text_layer_for_scroll(sell_label, FONT_KEY_GOTHIC_18_BOLD, sell_text, 0, 220);
-    init_text_layer_for_scroll(sell_display, FONT_KEY_GOTHIC_18, sell, 0, 242);
+    init_text_layer_for_scroll(sell_label, sell_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 110, half_screen, 22);
+    init_text_layer_for_scroll(sell_display, sell, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 110, half_screen, 22);
 
     // Label and text for the volume.
-    init_text_layer_for_scroll(volume_label, FONT_KEY_GOTHIC_18_BOLD, volume_text, 0, 264);
-    init_text_layer_for_scroll(volume_display, FONT_KEY_GOTHIC_18, volume, 0, 286);
+    init_text_layer_for_scroll(volume_label, volume_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 132, 55, 22);
+    init_text_layer_for_scroll(volume_display, volume, FONT_KEY_GOTHIC_18, GTextAlignmentRight, 55, 132, bounds.size.w - 55, 22);
 
     scroll_layer_set_click_config_onto_window(scroll_layer, window);
 }
