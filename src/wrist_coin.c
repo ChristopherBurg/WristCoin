@@ -91,6 +91,7 @@ static void fetch_message(void) {
     app_message_outbox_send();
 }
 
+/*
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
 //    text_layer_set_text(bitstamp_title_text, "Loading...");
 // Handled by the select_callback function now.
@@ -104,6 +105,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
 //  text_layer_set_text(text_layer, "Down");
 }
+*/
 
 static void out_sent_handler(DictionaryIterator *sent, void *context) {
 
@@ -115,7 +117,7 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
     ExchangeData *selected;
-    const int32_t last = 0;
+//    const int32_t last = 0;
     const int index = cell_index->row;
     
     if ((selected = get_data_for_exchange(index)) == NULL) {
