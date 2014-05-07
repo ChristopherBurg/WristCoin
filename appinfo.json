@@ -10,6 +10,8 @@
   },
   "appKeys": {
     "command" : 0,
+    "exIndex" : 100,
+    "exName" : 101,
     "exchange" : 1,
     "error" : 2,
     "errorMessage" : 3,

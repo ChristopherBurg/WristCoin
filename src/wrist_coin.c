@@ -14,6 +14,8 @@ static MenuLayer *exchange_menu;
 enum {
 //    WC_KEY_FETCH = 0,
     WC_KEY_COMMAND = 0,
+    WC_KEY_EX_INDEX = 100,
+    WC_KEY_EX_NAME = 101,
     WC_KEY_EXCHANGE = 1,
     WC_KEY_ERROR = 2,
     WC_KEY_ERROR_MESSAGE = 3,
@@ -46,16 +48,31 @@ typedef struct {
 
 static ExchangeData exchange_data_list[NUMBER_OF_EXCHANGES];
 
+typedef struct {
+    char ex_name[EXCHANGE_NAME_LENGTH];
+} ExData;
+
+static ExData ex_data_list[NUMBER_OF_EXCHANGES];
+
 /* Returns the ExchangeData for the exchange at index. For a good time use the 
    exchange related #defines at the beginning of this file when calling this 
    function.
 */
+// TODO: Remove function.
 static ExchangeData* get_data_for_exchange(int index) {
     if (index < 0 || index >= NUMBER_OF_EXCHANGES) {
         return NULL;
     }
 
     return &exchange_data_list[index];
+}
+
+static ExData* get_ex_data(int index) {
+    if (index < 0 || index >= NUMBER_OF_EXCHANGES) {
+        return NULL;
+    }
+
+    return &ex_data_list[index];
 }
 
 /* Sets the price fields to "Loading..." so the displayed information read
@@ -118,6 +135,28 @@ static void fetch_configuration(void) {
     app_message_outbox_send();
 }
 
+/* Fetch the current price information from the selected exchange.
+ *
+ * int exchange - The index of the exchange to fetch prices for.
+ */
+static void fetch_ex_price(int exchange) {
+    Tuplet command = TupletInteger(WC_KEY_COMMAND, 1);
+    Tuplet index = TupletInteger(WC_KEY_EX_INDEX, exchange);
+
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+
+    if (iter == NULL) {
+        return;
+    }
+
+    dict_write_tuplet(iter, &command);
+    dict_write_tuplet(iter, &index);
+    dict_write_end(iter);
+
+    app_message_outbox_send();
+}
+
 static void out_sent_handler(DictionaryIterator *sent, void *context) {
 
 }
@@ -164,11 +203,11 @@ static uint16_t get_num_rows_callback(struct MenuLayer *menu_layer, uint16_t sec
    "Loading..." and "Error..." can be dispalyed.
  */
 static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_index, void *data) {
-    ExchangeData *exchange_data;
+    ExData *ex_data;
     const int index = cell_index->row;
     char last[PRICE_FIELD_LENGTH];
 
-    if ((exchange_data = get_data_for_exchange(index)) == NULL) {
+    if ((ex_data = get_ex_data(index)) == NULL) {
         return;
     }
 
@@ -180,6 +219,7 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
        -1 = Loading...
        -2 = Error...
     */ 
+    /*
     switch(exchange_data->last) {
     case -1:
         snprintf(last, PRICE_FIELD_LENGTH, "Loading...");
@@ -190,12 +230,35 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
     default:
         format_as_dollars(last, exchange_data->last);
     }
+    */
 
-    menu_cell_basic_draw(ctx, cell_layer, exchange_data->exchange_name, last, NULL);
+    // TODO: Fill field with actual data.
+    snprintf(last, PRICE_FIELD_LENGTH, "Testing...");
+
+    menu_cell_basic_draw(ctx, cell_layer, ex_data->ex_name, last, NULL);
 }
 
-static void process_exchange_configuration(DictionaryIterator *configuration) {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Entered process_exchange_configuration.");
+static void load_ex_config(DictionaryIterator *config) {
+    Tuple *ex_index = dict_find(config, WC_KEY_EX_INDEX);
+    Tuple *ex_name = dict_find(config, WC_KEY_EX_NAME);
+
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Entered load_ex_config.");
+
+    if (ex_index) {
+        int32_t index = ex_index->value->int32;
+
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Received exchange index %ld.", index);
+
+        if (ex_name) {
+            strncpy(ex_data_list[index].ex_name, ex_name->value->cstring, EXCHANGE_NAME_LENGTH);
+        }
+    } 
+}
+
+static void load_ex_prices(DictionaryIterator *prices) {
+    Tuple *ex_index = dict_find(prices, WC_KEY_EX_INDEX);
+
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 233, "Entered load_ex_prices.");
 }
 
 static void in_received_handler(DictionaryIterator *received, void *context) {
@@ -208,9 +271,16 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 
         if (command_type == 0) {
             app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Command was an exchange configuration.");
-            process_exchange_configuration(received);
-        }       
+            load_ex_config(received);
+        }
+
+        if (command_type == 1) {
+            app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 250, "Command was an exchange price list.");
+            load_ex_prices(received);
+        }
     }
+
+    menu_layer_reload_data(exchange_menu);
 }
 
 static void OLD_in_received_handler(DictionaryIterator *received, void *context) {
@@ -301,6 +371,11 @@ static void window_load(Window *window) {
     strncpy(exchange_data_list[BITSTAMP_INDEX].exchange_name, "Bitstamp\0", EXCHANGE_NAME_LENGTH);
     strncpy(exchange_data_list[MTGOX_INDEX].exchange_name, "Mt. Gox\0", EXCHANGE_NAME_LENGTH);
     strncpy(exchange_data_list[BTCE_INDEX].exchange_name, "BTC-e\0", EXCHANGE_NAME_LENGTH);
+
+    // Place empty strings into the exchange names.
+    for (int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
+        strncpy(ex_data_list[i].ex_name, "LOADING\0", EXCHANGE_NAME_LENGTH);
+    }
 
     exchange_menu = menu_layer_create(bounds);
     menu_layer_set_callbacks(exchange_menu, NULL, (MenuLayerCallbacks) {

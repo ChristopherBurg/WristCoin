@@ -288,9 +288,13 @@ function fetchBtcePrice() {
 function sendConfiguration() {
     // Test record for exhcnage information. Using Bitstamp for the test.
     sendMessageToPebble({"command" : 0,
-                         "exchange" : 0,
-                         "index" : 0,
-                         "name" : "Bitstamp"
+                         "exIndex" : 0,
+                         "exName" : "Bitstamp",
+                        });
+
+    sendMessageToPebble({"command" : 0,
+                         "exIndex" : 1,
+                         "exName" : "BTC-e",
                         });
 }
 
