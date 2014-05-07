@@ -9,7 +9,7 @@
     "watchface": false
   },
   "appKeys": {
-    "fetch": 0,
+    "command" : 0,
     "exchange" : 1,
     "error" : 2,
     "errorMessage" : 3,

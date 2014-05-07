@@ -12,7 +12,8 @@ static MenuLayer *exchange_menu;
    This list should mirror the list of appkeys found in the appinfo.json file.
 */
 enum {
-    WC_KEY_FETCH = 0,
+//    WC_KEY_FETCH = 0,
+    WC_KEY_COMMAND = 0,
     WC_KEY_EXCHANGE = 1,
     WC_KEY_ERROR = 2,
     WC_KEY_ERROR_MESSAGE = 3,
@@ -26,6 +27,11 @@ enum {
     WC_KEY_BITSTAMP = 200,
     WC_KEY_MTGOX = 201,
     WC_KEY_BTCE = 202,
+};
+
+enum {
+    WC_COMMAND_GET_EXCHANGES = 0,
+    WC_COMMAND_GET_PRICES = 1,
 };
 
 /* This typedef is here due to a consideration to create a status field to
@@ -76,6 +82,7 @@ static void set_status_to_error(int index) {
    prices from Bitcoin exchanges.
 */
 static void fetch_message(void) {
+/*
     Tuplet fetch = TupletInteger(WC_KEY_FETCH, 1);
 
     DictionaryIterator *iter;
@@ -89,23 +96,27 @@ static void fetch_message(void) {
     dict_write_end(iter);
 
     app_message_outbox_send();
-}
-
-/*
-static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-//    text_layer_set_text(bitstamp_title_text, "Loading...");
-// Handled by the select_callback function now.
-//    fetch_message();
-}
-
-static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-//  text_layer_set_text(text_layer, "Up");
-}
-
-static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-//  text_layer_set_text(text_layer, "Down");
-}
 */
+}
+
+/* Fetch the current configuration from the phone application.
+ *
+ */
+static void fetch_configuration(void) {
+    Tuplet fetch = TupletInteger(WC_KEY_COMMAND, 0);
+
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+
+    if (iter == NULL) {
+        return;
+    }
+
+    dict_write_tuplet(iter, &fetch);
+    dict_write_end(iter);
+
+    app_message_outbox_send();
+}
 
 static void out_sent_handler(DictionaryIterator *sent, void *context) {
 
@@ -183,7 +194,26 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
     menu_cell_basic_draw(ctx, cell_layer, exchange_data->exchange_name, last, NULL);
 }
 
+static void process_exchange_configuration(DictionaryIterator *configuration) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Entered process_exchange_configuration.");
+}
+
 static void in_received_handler(DictionaryIterator *received, void *context) {
+    Tuple *command = dict_find(received, WC_KEY_COMMAND);
+
+    if (command) {
+        int32_t command_type = command->value->int32;
+
+        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 203, "Received a command from the phone.");
+
+        if (command_type == 0) {
+            app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Command was an exchange configuration.");
+            process_exchange_configuration(received);
+        }       
+    }
+}
+
+static void OLD_in_received_handler(DictionaryIterator *received, void *context) {
     Tuple *exchange = dict_find(received, WC_KEY_EXCHANGE);
     Tuple *error = dict_find(received, WC_KEY_ERROR);
     Tuple *low = dict_find(received, WC_KEY_LOW);
@@ -285,7 +315,10 @@ static void window_load(Window *window) {
 
     set_status_to_loading();
 
-    fetch_message();
+    fetch_configuration();
+
+/* This kicks off the fetch messages command, which is being replaced. */
+//    fetch_message();
 }
 
 static void window_unload(Window *window) {

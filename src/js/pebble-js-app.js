@@ -285,17 +285,40 @@ function fetchBtcePrice() {
     req.send(null);
 }
 
+function sendConfiguration() {
+    // Test record for exhcnage information. Using Bitstamp for the test.
+    sendMessageToPebble({"command" : 0,
+                         "exchange" : 0,
+                         "index" : 0,
+                         "name" : "Bitstamp"
+                        });
+}
+
 Pebble.addEventListener("appmessage",
     function(e) {
         console.log("Received a message from the watch.");
-        console.log(e.payload.exchange);
+        console.log(e.type);
+	console.log(e.payload.command);
 
-        if (e.payload.fetch) {
+        if (e.payload.command == 0) {
+	    console.log("Pebble requested configuration information.");
+	    sendConfiguration();
+        }
+
+        if (e.payload.command == 1) {
+            fetchBitstampPrice();
+            fetchBtcePrice();
+            console.log("Received command: " + command);
+        }
+
+/*
+        if (e.payload.command == 1) {
             console.log("Received request to fetch prices from exchanges.");
             fetchBitstampPrice();
             fetchMtGoxPrice();
             fetchBtcePrice();
         }
+*/
     }
 );
 
