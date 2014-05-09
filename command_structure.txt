@@ -1,12 +1,12 @@
-Communications between the Pebble and phone are handled by a series of command 
+Communications between the Pebble and phone are handled by a series of command
 messages.
 
-Command messages take the form of a series of key/value pairs. The first 
+Command messages take the form of a series of key/value pairs. The first
 key/value pair is always 0 : int. 0 indicates that the message is a command and
 the integer value tells what command is being issued. Depending on the command
-value additional information may be included in the message. 
+value additional information may be included in the message.
 
-Messages sent in reply to a command always start by including the same 
+Messages sent in reply to a command always start by including the same
 key/value pair as the initial command. For example, if the Pebble sent 0:0 to
 the phone the phone's response would start with 0:0 as well.
 
@@ -37,16 +37,29 @@ The initial command message is:
 -----------------------
 |    0     |    0     |
 -----------------------
+|  Config  |   int    |
+-----------------------
 
-When received by the phone it returns configuration information for each
-enabled exchange. The number of response command messages will equal the number
-of exchanges enabled. Each message will contain configuration information for 
-one exhcnage. Response command messages take the form of:
+When received by the phone it will push the appropriate configuration
+information. The Config value is used to select the type of configuration
+information to be sent. Response command message take the form of:
 
 -----------------------
 |    0     |    0     |
 -----------------------
-| Exchange |   int    |
+|  Config  |    0     |
+-----------------------
+|  Number  |   int    |
+-----------------------
+
+A Config value of 0 indicates that the returned records will be global
+configuration information. Number is the number of exchanges that the user has
+enabled.
+
+-----------------------
+|    0     |    0     |
+-----------------------
+|  Config  |    1     |
 -----------------------
 |  Index   |   int    |
 -----------------------
@@ -59,10 +72,11 @@ one exhcnage. Response command messages take the form of:
 |  ValueZ  |    1     |
 -----------------------
 
-Exchange denotes which exchange the configuration applies to. Index is the
-exchange's index, or order in the array of all indexes. Name is a string
-representation of the exchange ("Bitstamp", "BTC-e", etc.). ValueA through
-ValueZ are the values that the exchange returns (high, low, last, etc.).
+A Config value of 1 indicates that the returned records will be configuration
+data for an exchange. Index is theexchange's index, or order in the array of all
+indexes. Name is a string representation of the exchange ("Bitstamp", "BTC-e",
+etc.). ValueA through ValueZ are the values that the exchange returns (high,
+low, last, etc.).
 
 -------------------------------------------------------------------------------
 | 1.2 Fetch Prices                                                            |
@@ -74,7 +88,7 @@ ValueZ are the values that the exchange returns (high, low, last, etc.).
 | Response Type: One to Many                                                  |
 -------------------------------------------------------------------------------
 
-This command tells the phone to fetch price information for every enabled 
+This command tells the phone to fetch price information for every enabled
 exchange. It exists primarily because the initial design of this application
 assumed it would always fetch prices for every exchange. Since I don't feel
 like rewriting a great deal of code right away I included this command to work
@@ -99,9 +113,9 @@ Response command message take the form of:
 |  ValueZ  |   int    |
 -----------------------
 
-Exchange denotes the exchange the pricing information applies to. ValueA 
-through ValueZ are the prices (high, low, last, etc.) returned by the 
-exchange's API. 
+Exchange denotes the exchange the pricing information applies to. ValueA
+through ValueZ are the prices (high, low, last, etc.) returned by the
+exchange's API.
 
 Note that int values returned for ValueA through ValueZ are usually 32-bit
 integers. The exception to this rule are values that overflow 32-bit integers
@@ -119,7 +133,7 @@ arrays.
 -------------------------------------------------------------------------------
 
 This command differs only slightly from 1.2. Instead of fetching prices for all
-exchanges this command only fetches the price information for a single 
+exchanges this command only fetches the price information for a single
 exchange. The initial command is:
 -----------------------
 |    0     |    1     |
@@ -128,7 +142,7 @@ exchange. The initial command is:
 -----------------------
 
 When received by the phone it fetches price information from the designated
-exchange and returns it to the Pebble. Response command message take the form 
+exchange and returns it to the Pebble. Response command message take the form
 of:
 
 -----------------------
@@ -143,9 +157,9 @@ of:
 |  ValueZ  |   int    |
 -----------------------
 
-Exchange denotes the exchange the pricing information applies to. ValueA 
-through ValueZ are the prices (high, low, last, etc.) returned by the 
-exchange's API. 
+Exchange denotes the exchange the pricing information applies to. ValueA
+through ValueZ are the prices (high, low, last, etc.) returned by the
+exchange's API.
 
 Note that int values returned for ValueA through ValueZ are usually 32-bit
 integers. The exception to this rule are values that overflow 32-bit integers
@@ -163,4 +177,3 @@ If an error occurs while fetching prices the returned command message is:
 
 Exchange denotes the exchange that encountered the error. Error denotes the
 type of error that was encountered.
-

@@ -10,22 +10,24 @@
   },
   "appKeys": {
     "command" : 0,
+    "config" : 1,
+    "numEx" : 2,
     "exIndex" : 100,
     "exName" : 101,
-    "exchange" : 1,
-    "error" : 2,
-    "errorMessage" : 3,
-    "resendFailed" : 4,
-    "low" : 100,
-    "high" : 101,
-    "last" : 102,
-    "average" : 103,
-    "buy" : 104,
-    "sell" : 105,
-    "volume" : 106,
-    "bitstamp" : 200,
-    "mtgox" : 201,
-    "btce" : 202
+    "exchange" : 5001,
+    "error" : 5002,
+    "errorMessage" : 5003,
+    "resendFailed" : 5004,
+    "low" : 5100,
+    "high" : 5101,
+    "last" : 5102,
+    "average" : 5103,
+    "buy" : 5104,
+    "sell" : 5105,
+    "volume" : 5106,
+    "bitstamp" : 5200,
+    "mtgox" : 5201,
+    "btce" : 5202
   },
   "resources": {
     "media": [
@@ -38,4 +40,3 @@
              ]
   }
 }
-
