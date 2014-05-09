@@ -48,16 +48,24 @@ enum {
 decide what the menu displays instead of using whatever value is in the
 ExchangeData.last field.
 */
+// TODO: Remove this struct.
 typedef struct {
   ExchangeData *exchange_data;
   int32_t status;
   int32_t error;
 } ExchangeDataList;
 
+// TODO: Remove this.
 static ExchangeData exchange_data_list[NUMBER_OF_EXCHANGES];
 
+const char *stat_loading = "Loading...\0";
+const char *stat_error = "Error...\0";
+
+/* Struct that stores exchange data.
+ */
 typedef struct {
-  char ex_name[EXCHANGE_NAME_LENGTH];
+  char *ex_name;
+  char *ex_status;
 } ExData;
 
 //static ExData ex_data_list[NUMBER_OF_EXCHANGES];
@@ -75,6 +83,70 @@ static int32_t num_ex = 0;
  */
 static ExData *ex_data_list = NULL;
 
+/* Frees all of the data allocated for the ex_data_list. First all of the
+ * allocated variables for all of the ExData items are freed then ex_data_list
+ * itself is freed. All pointers are then set to NULL. This function should only
+ * be called from update_global_config and window_unload.
+ */
+static void free_ex_data_list(void) {
+  if (ex_data_list != NULL) {
+    // Iterate through each ExData item and free its allocated variables and set
+    // their pointers to NULL.
+    for (int i = 0; i < num_ex; i++) {
+      if (ex_data_list[i].ex_name != NULL) {
+        free(ex_data_list[i].ex_name);
+        ex_data_list[i].ex_name = NULL;
+      }
+
+      if (ex_data_list[i].ex_status != NULL) {
+        free(ex_data_list[i].ex_status);
+        ex_data_list[i].ex_status = NULL;
+      }
+    }
+
+    // Free the ex_data_list itself and set its pointer to NULL.
+    free(ex_data_list);
+    ex_data_list = NULL;
+  }
+}
+
+/* Dynamic memory string copy. This function takes a dest and a source then
+ * frees dest and sets it to NULL before allocating new memory and copying the
+ * contents of source into dest. Obviously this function is destruction as all
+ * get out. Whatever is in dest won't be there afer this function finishes.
+ *
+ * char *dest - The pointer to copy the contents of source to. This variable
+ *              will be totally destroyed before the copy.
+ *
+ * char *source - The contents to copy into dest.
+ */
+static char * strdyncpy(char *dest, const char *source) {
+  if (source != NULL) {
+    // We're going to deallocate and reallocate dest. This will ensure the size
+    // of dest and source are equal and the data is reliably copied.
+    if (dest != NULL) {
+      free(dest);
+      dest = NULL;
+    }
+
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Reallocating memory for dest. Will allocate %d byets.", (strlen(source) + 1));
+    dest = (char *) malloc(sizeof(char) * (strlen(source) + 1));
+
+    if (dest != NULL) {
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 136, "Memory for dest allocated. Copying contents from source into dest.");
+      strncpy(dest, source, strlen(source));
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 138, "dest now contains '%s'.", dest);
+    } else {
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 374, "Something went horribly wrong. ex_data_list[i].ex_status memory wasn't allocated.");
+    }
+
+  } else {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 124, "You can't pass a NULL source value into set_ex_status, dummy.");
+  }
+
+  return dest;
+}
+
 /* The nuclear option. This function wipes out the current configuration and
  * loads a new configuration. It should only be activated from a global
  * configuration initiated by the Pebble app.
@@ -87,10 +159,7 @@ static ExData* update_global_config(int32_t new_num_ex) {
 
   app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 75, "Global configuration change requested. Shit is going down.");
   // If ex_data_list has already been allocated dellocate it now.
-  if (ex_data_list != NULL) {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 78, "ex_data_list was already allocated. Deallocating.");
-    free(ex_data_list);
-  }
+  free_ex_data_list();
 
   app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 82, "Allocating ex_data_list.");
 
@@ -103,8 +172,11 @@ static ExData* update_global_config(int32_t new_num_ex) {
   } else {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 91, "ex_data_list allocated. Zeroing values in memory.");
 
+    // Zero out all of the data in the newly allocated array so we don't have
+    // a bunch of random shit happen due to unknown memory contents.
     for (int i = 0; i < num_ex; i++) {
-      strncpy(ex_data_list[i].ex_name, "\0", EXCHANGE_NAME_LENGTH);
+      ex_data_list[i].ex_name = NULL;
+      ex_data_list[i].ex_status = NULL;
     }
   }
 
@@ -313,10 +385,12 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
 }
 */
 
-  // TODO: Fill field with actual data.
-  snprintf(last, PRICE_FIELD_LENGTH, "Testing...");
-
-  menu_cell_basic_draw(ctx, cell_layer, "TESTING", last, NULL);
+  if (ex_data_list[index].ex_status != NULL) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 389, "Status isn't NULL at least!."); // %p.", ex_data_list[index].ex_status);
+    menu_cell_basic_draw(ctx, cell_layer, "TESTING", ex_data_list[index].ex_status, NULL);
+  } else {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 389, "Status is NULL!");
+  }
 }
 
 /*
@@ -325,33 +399,54 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
 * DictionaryIterator *config - A DictionaryIterator containing the
 *                              configuration information.
 */
+static void load_global_config(DictionaryIterator *config) {
+  Tuple *num_ex = dict_find(config, WC_KEY_NUM_EX);
+
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 300, "Global configuration changing. User has selected %ld exchanges.", num_ex->value->int32);
+
+  update_global_config(num_ex->value->int32);
+
+  // Global configuration data has been loaded. Set the status for each exchange
+  // to "Loading...".
+  for (int i = 0; i < num_ex->value->int32; i++) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 404, "Copying 'Loading...' into exchange %d.", i);
+    ex_data_list[i].ex_status = strdyncpy(ex_data_list[i].ex_status, stat_loading);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_data_list[i].ex_status);
+  }
+
+}
+
 static void load_ex_config(DictionaryIterator *config) {
-  Tuple *config_type = dict_find(config, WC_KEY_EX_CONFIG);
+  Tuple *ex_index = dict_find(config, WC_KEY_EX_INDEX);
+  Tuple *ex_name = dict_find(config, WC_KEY_EX_NAME);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Entered load_ex_config.");
+  if (ex_index) {
+    int32_t index = ex_index->value->int32;
 
-  // Received global configuration data.
-  if (config_type->value->int32 == WC_KEY_GLOBAL_CONFIG) {
-    Tuple *num_ex = dict_find(config, WC_KEY_NUM_EX);
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 300, "Global configuration changing. User has selected %ld exchanges.", num_ex->value->int32);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Received exchange index %ld.", index);
 
-    update_global_config(num_ex->value->int32);
-
-  // Received exchange configuration data.
-  } else if (config_type->value->int32 == WC_KEY_EX_CONFIG) {
-    Tuple *ex_index = dict_find(config, WC_KEY_EX_INDEX);
-    Tuple *ex_name = dict_find(config, WC_KEY_EX_NAME);
-
-    if (ex_index) {
-      int32_t index = ex_index->value->int32;
-
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Received exchange index %ld.", index);
-
-      if (ex_name) {
-        strncpy(ex_data_list[index].ex_name, ex_name->value->cstring, EXCHANGE_NAME_LENGTH);
-      }
+    if (ex_name) {
+      strncpy(ex_data_list[index].ex_name, ex_name->value->cstring, EXCHANGE_NAME_LENGTH);
     }
   }
+}
+
+static void load_config(DictionaryIterator *config) {
+  Tuple *config_type = dict_find(config, WC_KEY_CONFIG);
+
+  if (config_type) {
+    if (config_type->value->int32 == WC_KEY_GLOBAL_CONFIG) {
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 429, "Config record is global. This is going to get interesting.");
+      load_global_config(config);
+    } else if (config_type->value->int32 == WC_KEY_EX_CONFIG) {
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 431, "Config record is for an exchange. Should be no biggy.");
+      load_ex_config(config);
+    }
+  } else {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 387, "Configuration data didn't contain configuration type value.");
+  }
+
+  return;
 
 }
 
@@ -390,7 +485,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
     */
     if (command_type == 0) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Command was an exchange configuration.");
-      load_ex_config(received);
+      load_config(received);
     }
 
     /*
@@ -522,10 +617,7 @@ static void window_load(Window *window) {
 static void window_unload(Window *window) {
   menu_layer_destroy(exchange_menu);
 
-  // ex_data_list will most likely be allocated. But verify before freeing it.
-  if (ex_data_list != NULL) {
-    free(ex_data_list);
-  }
+  free_ex_data_list();
 }
 
 // Register any app message handlers.
