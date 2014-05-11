@@ -297,12 +297,14 @@ function sendGlobalConfig() {
 
 function sendExConfig() {
   // Test record for exhcnage information. Using Bitstamp for the test.
+  console.log("Sending exchange configuration for Bitstamp.");
   sendMessageToPebble({"command" : 0,
                        "config" : 1,
                        "exIndex" : 0,
                        "exName" : "Bitstamp",
                       });
 
+  console.log("Sending exchange configuration for BTC-e.");
   sendMessageToPebble({"command" : 0,
                        "config" : 1,
                        "exIndex" : 1,

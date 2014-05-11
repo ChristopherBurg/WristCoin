@@ -385,16 +385,11 @@ static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_
 }
 */
 
-  if (ex_data_list[index].ex_status != NULL) {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 389, "Status isn't NULL at least!."); // %p.", ex_data_list[index].ex_status);
-    menu_cell_basic_draw(ctx, cell_layer, "TESTING", ex_data_list[index].ex_status, NULL);
-  } else {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 389, "Status is NULL!");
-  }
+  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[index].ex_name, ex_data_list[index].ex_status, NULL);
 }
 
 /*
-* Loads configuration information sent from the Pebble app.
+* Loads global configuration information sent from the Pebble app.
 *
 * DictionaryIterator *config - A DictionaryIterator containing the
 *                              configuration information.
@@ -414,8 +409,19 @@ static void load_global_config(DictionaryIterator *config) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_data_list[i].ex_status);
   }
 
+  // When the global configuration is updated the exchange_menu is rebuilt. It's
+  // a good idea to set the index to zero in this case.
+  menu_layer_set_selected_index(exchange_menu, (MenuIndex) {0, 0}, MenuRowAlignNone, false);
+
+  // Now that the global configuration has been changed the configuration for
+  // the exchanges needs to be updated.
+  fetch_ex_config();
 }
 
+/* Load exchange configuration information sent from the Pebble app.
+ *
+ * DictionaryIterator *config - The exchange configuration information.
+ */
 static void load_ex_config(DictionaryIterator *config) {
   Tuple *ex_index = dict_find(config, WC_KEY_EX_INDEX);
   Tuple *ex_name = dict_find(config, WC_KEY_EX_NAME);
@@ -426,11 +432,20 @@ static void load_ex_config(DictionaryIterator *config) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Received exchange index %ld.", index);
 
     if (ex_name) {
-      strncpy(ex_data_list[index].ex_name, ex_name->value->cstring, EXCHANGE_NAME_LENGTH);
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 435, "Exchange name is '%s'. Copying it now.", ex_name->value->cstring);
+//      strncpy(ex_data_list[index].ex_name, ex_name->value->cstring, EXCHANGE_NAME_LENGTH);
+      ex_data_list[index].ex_name = strdyncpy(ex_data_list[index].ex_name, ex_name->value->cstring);
+      app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 438, "'%s' finshed copying.", ex_data_list[index].ex_name);
     }
   }
 }
 
+/* Looks at the configuration information to determine what type it is. If it is
+ * a global configuration then config is sent to load_global_config. If it is an
+ * exchange configuration then config is sent to load_ex_config.
+ *
+ * DictionaryIterator *config - Configuration information to be processed.
+ */
 static void load_config(DictionaryIterator *config) {
   Tuple *config_type = dict_find(config, WC_KEY_CONFIG);
 
@@ -585,15 +600,6 @@ static void click_config_provider(void *context) {
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
-
-  strncpy(exchange_data_list[BITSTAMP_INDEX].exchange_name, "Bitstamp\0", EXCHANGE_NAME_LENGTH);
-  strncpy(exchange_data_list[MTGOX_INDEX].exchange_name, "Mt. Gox\0", EXCHANGE_NAME_LENGTH);
-  strncpy(exchange_data_list[BTCE_INDEX].exchange_name, "BTC-e\0", EXCHANGE_NAME_LENGTH);
-
-  // Place empty strings into the exchange names.
-//  for (int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
-//    strncpy(ex_data_list[i].ex_name, "LOADING\0", EXCHANGE_NAME_LENGTH);
-//  }
 
   exchange_menu = menu_layer_create(bounds);
   menu_layer_set_callbacks(exchange_menu, NULL, (MenuLayerCallbacks) {
