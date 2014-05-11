@@ -53,26 +53,26 @@ function sendMessageToPebble(message) {
   Pebble.sendAppMessage(message,
     successHandler,
     errorHandler);
-  }
+}
 
-  // Gets the curret price list from Bitstamp.
-  function fetchBitstampPrice() {
-    var req = new XMLHttpRequest();
+// Gets the curret price list from Bitstamp.
+function fetchBitstampPrice() {
+  var req = new XMLHttpRequest();
 
-    var onloadHandler = function(event) {
-      if (req.readyState == 4) {
-        if (req.status == 200) {
-          console.log(req.responseText);
+  var onloadHandler = function(event) {
+    if (req.readyState == 4) {
+      if (req.status == 200) {
+        console.log(req.responseText);
 
-          // Sometimes we can get unexpected results. This constitutes a
-          // "type 2" error. Please note that this try-catch block will
-          // return immediately upon error.
-          try {
-            var response = JSON.parse(req.responseText);
-          } catch (e) {
-            sendMessageToPebble({"exchange" : 0,
-            "error" : 2
-          });
+        // Sometimes we can get unexpected results. This constitutes a
+        // "type 2" error. Please note that this try-catch block will
+        // return immediately upon error.
+        try {
+          var response = JSON.parse(req.responseText);
+        } catch (e) {
+          sendMessageToPebble({"exchange" : 0,
+                               "error" : 2
+                              });
           return;
         }
 
@@ -89,37 +89,39 @@ function sendMessageToPebble(message) {
 
         console.log(volume);
 
-        sendMessageToPebble({"exchange" : 0,
-                             "high" : high,
-                             "low" : low,
-                             "last" : last,
-                             "average" : average,
-                             "buy" : buy,
-                             "sell" : sell,
-                             "volume" : volume_bytes
+        sendMessageToPebble({"command" : 1,
+                             "exIndex" : 0,
+                             "exLow" : low,
+                             "exHigh" : high,
+                             "exAvg" : average,
+                             "exLast" : last,
+//                             "average" : average,
+//                             "buy" : buy,
+//                             "sell" : sell,
+//                             "volume" : volume_bytes
                             });
 
-    } else {
-      console.log("HTTP status returned was not 200. Received " + req.status + " instead.");
-      sendMessageToPebble({"exchange" : 0,
+      } else {
+        console.log("HTTP status returned was not 200. Received " + req.status + " instead.");
+        sendMessageToPebble({"exchange" : 0,
                            "error" : 0
+                            });
+      }
+    } else {
+      console.log("Didn't receieve ready status of 4. Receieved " + req.readyStatus + " instead.");
+      sendMessageToPebble({"exchange" : 0,
+                           "error" : 1
                           });
     }
-  } else {
-    console.log("Didn't receieve ready status of 4. Receieved " + req.readyStatus + " instead.");
-    sendMessageToPebble({"exchange" : 0,
-                         "error" : 1
-                        });
   }
-}
 
-console.log("Fetching Bitstamp prices.");
+  console.log("Fetching Bitstamp prices.");
 
-req.onload = onloadHandler;
+  req.onload = onloadHandler;
 
-req.open("GET", "https://www.bitstamp.net/api/ticker/", true);
+  req.open("GET", "https://www.bitstamp.net/api/ticker/", true);
 
-req.send(null);
+  req.send(null);
 }
 
 // Gets the current price list from Mt. Gox.
@@ -296,6 +298,7 @@ function sendGlobalConfig() {
 }
 
 function sendExConfig() {
+  console.log("Pebble has requested exchange configurations. Sending test configs now.");
   // Test record for exhcnage information. Using Bitstamp for the test.
   console.log("Sending exchange configuration for Bitstamp.");
   sendMessageToPebble({"command" : 0,
@@ -312,12 +315,22 @@ function sendExConfig() {
                       });
 }
 
+function sendExPrices(index) {
+  console.log("Pebble requested prices for exchange " + index + ". Sending test prices now.");
+  if (index == 0) {
+    fetchBitstampPrice();
+  } else if (index == 1) {
+    fetchBtcePrice();
+  }
+}
+
 Pebble.addEventListener("appmessage",
 function(e) {
   console.log("Received a message from the watch.");
   console.log(e.type);
   console.log(e.payload.command);
   console.log(e.payload.config);
+  console.log(e.payload.exIndex);
 
   if (e.payload.command == 0) {
     if (e.payload.config == 0) {
@@ -332,9 +345,8 @@ function(e) {
   }
 
   if (e.payload.command == 1) {
-    fetchBitstampPrice();
-    fetchBtcePrice();
-    console.log("Received command: " + command);
+    console.log("Pebble requested prices for an exchange.");
+    sendExPrices(e.payload.exIndex);
   }
 
   /*

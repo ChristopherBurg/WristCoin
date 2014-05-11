@@ -18,6 +18,10 @@ enum {
   WC_KEY_NUM_EX = 2,
   WC_KEY_EX_INDEX = 100,
   WC_KEY_EX_NAME = 101,
+  WC_KEY_EX_LOW = 102,
+  WC_KEY_EX_HIGH = 103,
+  WC_KEY_EX_AVG = 104,
+  WC_KEY_EX_LAST = 105,
   WC_KEY_EXCHANGE = 1,
   WC_KEY_ERROR = 2,
   WC_KEY_ERROR_MESSAGE = 3,
@@ -66,6 +70,10 @@ const char *stat_error = "Error...\0";
 typedef struct {
   char *ex_name;
   char *ex_status;
+  int32_t low;
+  int32_t high;
+  int32_t avg;
+  int32_t last;
 } ExData;
 
 //static ExData ex_data_list[NUMBER_OF_EXCHANGES];
@@ -177,6 +185,10 @@ static ExData* update_global_config(int32_t new_num_ex) {
     for (int i = 0; i < num_ex; i++) {
       ex_data_list[i].ex_name = NULL;
       ex_data_list[i].ex_status = NULL;
+      ex_data_list[i].low = 0;
+      ex_data_list[i].high = 0;
+      ex_data_list[i].avg = 0;
+      ex_data_list[i].last = 0;
     }
   }
 
@@ -246,8 +258,8 @@ app_message_outbox_send();
 }
 
 /* Fetch the current configuration from the phone application.
-*
-*/
+ *
+ */
 static void fetch_global_config(void) {
   Tuplet fetch = TupletInteger(WC_KEY_COMMAND, 0);
   Tuplet config_type = TupletInteger(WC_KEY_CONFIG, WC_KEY_GLOBAL_CONFIG);
@@ -294,6 +306,8 @@ static void fetch_ex_config(void) {
 static void fetch_ex_price(int exchange) {
   Tuplet command = TupletInteger(WC_KEY_COMMAND, 1);
   Tuplet index = TupletInteger(WC_KEY_EX_INDEX, exchange);
+
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 310, "Fetching prices for %s. Sending index value %d.", ex_data_list[exchange].ex_name, exchange);
 
   DictionaryIterator *iter;
   app_message_outbox_begin(&iter);
@@ -437,6 +451,11 @@ static void load_ex_config(DictionaryIterator *config) {
       ex_data_list[index].ex_name = strdyncpy(ex_data_list[index].ex_name, ex_name->value->cstring);
       app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 438, "'%s' finshed copying.", ex_data_list[index].ex_name);
     }
+
+    app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 442, "Fetching current prices for %s.", ex_data_list[index].ex_name);
+    // Now that the configuration has been loaded it's time to fetch the current
+    // prices.
+    fetch_ex_price(index);
   }
 }
 
@@ -475,6 +494,36 @@ static void load_ex_prices(DictionaryIterator *prices) {
   Tuple *ex_index = dict_find(prices, WC_KEY_EX_INDEX);
 
   app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 233, "Entered load_ex_prices.");
+
+  if (ex_index) {
+    Tuple *ex_low = dict_find(prices, WC_KEY_EX_LOW);
+    Tuple *ex_high = dict_find(prices, WC_KEY_EX_HIGH);
+    Tuple *ex_avg = dict_find(prices, WC_KEY_EX_AVG);
+    Tuple *ex_last = dict_find(prices, WC_KEY_EX_LAST);
+    int index = ex_index->value->int32;
+
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "Received price information for %s.", ex_data_list[index].ex_name);
+
+    if (ex_low) {
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a low of %ld.", ex_data_list[index].ex_name, ex_low->value->int32);
+      ex_data_list[index].low = ex_low->value->int32;
+    }
+
+    if (ex_high) {
+      ex_data_list[index].high = ex_high->value->int32;
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a high of %ld.", ex_data_list[index].ex_name, ex_high->value->int32);
+    }
+
+    if (ex_avg) {
+      ex_data_list[index].avg = ex_avg->value->int32;
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has an average of %ld.", ex_data_list[index].ex_name, ex_avg->value->int32);
+    }
+
+    if (ex_last) {
+      ex_data_list[index].last = ex_last->value->int32;
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a last of %ld.", ex_data_list[index].ex_name, ex_last->value->int32);
+    }
+  }
 }
 
 /*
