@@ -356,6 +356,10 @@ req.send(null);
 
 /* An array containing a list of all available exchanges and whether or not the
  * user has enabled them.
+ *
+ * Each exchange has an associated hashtable. Each hashtable includes the
+ * exchanges name, whether it's enabled by the user, and the function called to
+ * fetches the current prices.
  */
 var exchanges = [{"exName" : "Bitstamp",
                   "isEnabled" : true,
@@ -425,16 +429,6 @@ function sendGlobalConfig() {
                       });
 }
 
-/*
-function getExConfig(exchange) {
-  var config;
-
-  if ()
-
-  return config;
-}
-*/
-
 /* This function sends configuration information for each enabled exchange.
  */
 function sendExConfig() {
@@ -464,20 +458,9 @@ function sendExConfig() {
  */
 function sendExPrices(index) {
   var ex = getExEnabled(index);
-  var lookupFunc;
   console.log("Pebble requested prices for exchange " + ex.exName + ". Sending prices now.");
 
-  lookupFunc = ex.priceLookup();
-  lookupFunc;
-}
-
-function OLD_sendExPrices(index) {
-  console.log("Pebble requested prices for exchange " + index + ". Sending test prices now.");
-  if (index == 0) {
-    fetchBitstampPrice();
-  } else if (index == 1) {
-    fetchBtcePrice();
-  }
+  ex.priceLookup();
 }
 
 Pebble.addEventListener("appmessage",

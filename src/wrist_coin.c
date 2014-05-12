@@ -297,28 +297,6 @@ static void set_stat_to_error(int index) {
   ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_error);
 }
 
-/* Asks the JavaScript code loaded on the smartphone's Pebble app to fetch
-prices from Bitcoin exchanges.
-*/
-// TODO: Remove this function.
-static void fetch_message(void) {
-  /*
-  Tuplet fetch = TupletInteger(WC_KEY_FETCH, 1);
-
-  DictionaryIterator *iter;
-  app_message_outbox_begin(&iter);
-
-  if (iter == NULL) {
-  return;
-}
-
-dict_write_tuplet(iter, &fetch);
-dict_write_end(iter);
-
-app_message_outbox_send();
-*/
-}
-
 /* Fetch the current configuration from the phone application.
  *
  */
