@@ -178,7 +178,94 @@ function fetchBitstampPrice() {
   req.send(null);
 }
 
-// Gets the current price list from Mt. Gox.
+// Gets the current prices from BTC-e.
+function fetchBtcePrice() {
+  var req = new XMLHttpRequest();
+
+  var onloadHandler = function(event) {
+    var successHandler = function(event) {
+      console.log("Successfully sent BTC-e prices to Pebble.");
+    }
+
+    var errorHandler = function(event) {
+      console.log("Error sending BTC-e prices to Pebble.");
+    }
+
+    console.log("BTC-e response received!");
+
+    if (req.readyState == 4) {
+      if (req.status == 200) {
+
+        console.log(req.responseText);
+
+        try {
+          var response = JSON.parse(req.responseText);
+        } catch (e) {
+          sendMessageToPebble({"exchange" : 2,
+          "error" : 2
+        });
+        return;
+      }
+
+      var high = parseInt(response.ticker.high * 100);
+      var low = parseInt(response.ticker.low * 100);
+      var last = parseInt(response.ticker.last * 100);
+      var average = parseInt(response.ticker.avg * 100);
+      var buy = parseInt(response.ticker.buy * 100);
+      var sell = parseInt(response.ticker.sell * 100);
+
+      var volume = parseInt(response.ticker.vol_cur * 100000000).toString(16);
+      var volume_bytes = convertHexStringToByteArray(volume);
+
+      console.log(volume);
+
+      console.log("Sending prices for BTC-e. Hold on to your butts.");
+      sendMessageToPebble({"command" : 1,
+                           "exIndex" : 1,
+                           "exLow" : low,
+                           "exHigh" : high,
+                           "exAvg" : average,
+                           "exLast" : last
+                          });
+/*
+      sendMessageToPebble({"exchange" : 2,
+                           "high" : high,
+                           "low" : low,
+                           "last" : last,
+                           "average" : average,
+                           "buy" : buy,
+                           "sell" : sell,
+                           "volume" : volume_bytes
+                          });
+*/
+
+      } else {
+        console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
+        sendMessageToPebble({"exchange" : 2,
+                             "error" : 0
+                            });
+      }
+    } else {
+      console.log("Didn't received ready status of 4. Received " + req.readyState.toString() + " instead.");
+      sendMessageToPebble({"exchange" : 2,
+                           "error" : 1
+                          });
+    }
+  }
+
+  console.log("Fetching BTC-e prices.");
+
+  req.onload = onloadHandler;
+
+  req.open("GET", "https://btc-e.com/api/2/btc_usd/ticker", true);
+
+  req.send(null);
+}
+
+/* Remember when Mt. Gox was a thing? Well it's not anymore but this code
+ * remains as a method of testing disabled exchanges. It will eventually be
+ * removed.
+ */
 function fetchMtGoxPrice() {
   var req = new XMLHttpRequest();
 
@@ -267,119 +354,124 @@ req.open("GET", "https://data.mtgox.com/api/2/BTCUSD/money/ticker", true);
 req.send(null);
 }
 
-// Gets the current prices from BTC-e.
-function fetchBtcePrice() {
-  var req = new XMLHttpRequest();
+/* An array containing a list of all available exchanges and whether or not the
+ * user has enabled them.
+ */
+var exchanges = [{"exName" : "Bitstamp",
+                  "isEnabled" : true,
+                  "priceLookup" : function() { fetchBitstampPrice() }},
+                 {"exName" : "BTC-e",
+                  "isEnabled" : true,
+                  "priceLookup" : function () { fetchBtcePrice() }},
+                 {"exName" : "Mt. Gox",
+                  "isEnabled" : false,
+                  "priceLookup" : function () { fetchMtGoxPrice() }}
+                ];
 
-  var onloadHandler = function(event) {
-    var successHandler = function(event) {
-      console.log("Successfully sent BTC-e prices to Pebble.");
+/* Takes an index and goes through the list of enabled exchanges until it finds
+ * the one desired.
+ *
+ * index - The enabled exchange's index. This number differs from the index of
+ *         of each individual exchange. If there are 10 available exchanges and
+ *         only 1,3,5, and 7 are enabled and index equals 2 then exchange 5, the
+ *         third enabled exchange, will be returned.
+ */
+function getExEnabled(index) {
+  var ex;
+  var enabled = 0;
+
+  while (enabled <= index) {
+    if (exchanges[enabled].isEnabled && enabled == index) {
+      console.log("Obtained enabled exchange at index " + index + ". Exchange is " + exchanges[enabled] + ".");
+      ex = exchanges[enabled];
     }
 
-    var errorHandler = function(event) {
-      console.log("Error sending BTC-e prices to Pebble.");
-    }
+    enabled++;
+  }
 
-    console.log("BTC-e response received!");
+  return ex;
+}
 
-    if (req.readyState == 4) {
-      if (req.status == 200) {
+/* Iterates through all of the available exchanges and returns the number of
+ * exchanges that have been enabled by the user.
+ */
+function getNumExEnabled() {
+  var enabled = 0;
 
-        console.log(req.responseText);
-
-        try {
-          var response = JSON.parse(req.responseText);
-        } catch (e) {
-          sendMessageToPebble({"exchange" : 2,
-          "error" : 2
-        });
-        return;
-      }
-
-      var high = parseInt(response.ticker.high * 100);
-      var low = parseInt(response.ticker.low * 100);
-      var last = parseInt(response.ticker.last * 100);
-      var average = parseInt(response.ticker.avg * 100);
-      var buy = parseInt(response.ticker.buy * 100);
-      var sell = parseInt(response.ticker.sell * 100);
-
-      var volume = parseInt(response.ticker.vol_cur * 100000000).toString(16);
-      var volume_bytes = convertHexStringToByteArray(volume);
-
-      console.log(volume);
-
-      console.log("Sending prices for BTC-e. Hold on to your butts.");
-      sendMessageToPebble({"command" : 1,
-                           "exIndex" : 1,
-                           "exLow" : low,
-                           "exHigh" : high,
-                           "exAvg" : average,
-                           "exLast" : last
-                          });
-/*
-      sendMessageToPebble({"exchange" : 2,
-                           "high" : high,
-                           "low" : low,
-                           "last" : last,
-                           "average" : average,
-                           "buy" : buy,
-                           "sell" : sell,
-                           "volume" : volume_bytes
-                          });
-*/
-
-      } else {
-        console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
-        sendMessageToPebble({"exchange" : 2,
-                             "error" : 0
-                            });
-      }
+  for (var i = 0; i < exchanges.length; i++) {
+    if (exchanges[i].isEnabled) {
+      console.log("Exchange " + exchanges[i].exName + " is enabled.");
+      enabled++;
     } else {
-      console.log("Didn't received ready status of 4. Received " + req.readyState.toString() + " instead.");
-      sendMessageToPebble({"exchange" : 2,
-                           "error" : 1
-                          });
+      console.log("Exchange " + exchanges[i].exName + " is disabled.");
     }
   }
 
-  console.log("Fetching BTC-e prices.");
-
-  req.onload = onloadHandler;
-
-  req.open("GET", "https://btc-e.com/api/2/btc_usd/ticker", true);
-
-  req.send(null);
+  console.log(enabled + " exchanges are enabled.");
+  return enabled;
 }
 
+/* This function send global configuration information to the Pebble. Global
+ * configuration information is basically anything that doesn't explicitly deal
+ * with an individual exchange.
+ */
 function sendGlobalConfig() {
+  var numExEnabled = getNumExEnabled();
+
   console.log("Sending global configuration.");
-  // TODO: Value for numEx is currently hardcoded. Send number of enabled
-  //       exchanges when that part is working.
   sendMessageToPebble({"command" : 0,
                        "config" : 0,
-                       "numEx" : 2,
+                       "numEx" : numExEnabled,
                       });
 }
 
+/*
+function getExConfig(exchange) {
+  var config;
+
+  if ()
+
+  return config;
+}
+*/
+
+/* This function sends configuration information for each enabled exchange.
+ */
 function sendExConfig() {
+  var countEnabled = 0;
   console.log("Pebble has requested exchange configurations. Sending test configs now.");
-  // Test record for exhcnage information. Using Bitstamp for the test.
-  console.log("Sending exchange configuration for Bitstamp.");
-  sendMessageToPebble({"command" : 0,
-                       "config" : 1,
-                       "exIndex" : 0,
-                       "exName" : "Bitstamp",
-                      });
 
-  console.log("Sending exchange configuration for BTC-e.");
-  sendMessageToPebble({"command" : 0,
-                       "config" : 1,
-                       "exIndex" : 1,
-                       "exName" : "BTC-e",
-                      });
+  /* Iterate through all of the available exchanges. If an exchange has been
+   * enabled by the user send its configuration information.
+   */
+  for (var i = 0; i < exchanges.length; i++) {
+    if (exchanges[i].isEnabled) {
+      console.log(exchanges[i].exName + " is enabled. Sending its configuration information.");
+      sendMessageToPebble({"command" : 0,
+                           "config" : 1,
+                           "exIndex" : countEnabled,
+                           "exName" : exchanges[i].exName
+                          });
+      countEnabled++;
+    }
+  }
 }
 
+/* Calls the appropriate function to look up the current prices for the desired
+ * exchange.
+ *
+ * index - The index of the exchange to look up prices for.
+ */
 function sendExPrices(index) {
+  var ex = getExEnabled(index);
+  var lookupFunc;
+  console.log("Pebble requested prices for exchange " + ex.exName + ". Sending prices now.");
+
+  lookupFunc = ex.priceLookup();
+  lookupFunc;
+}
+
+function OLD_sendExPrices(index) {
   console.log("Pebble requested prices for exchange " + index + ". Sending test prices now.");
   if (index == 0) {
     fetchBitstampPrice();
@@ -389,37 +481,28 @@ function sendExPrices(index) {
 }
 
 Pebble.addEventListener("appmessage",
-function(e) {
-  console.log("Received a message from the watch.");
-  console.log(e.type);
-  console.log(e.payload.command);
-  console.log(e.payload.config);
-  console.log(e.payload.exIndex);
+  function(e) {
+    console.log("Received a message from the watch.");
+    console.log(e.type);
+    console.log(e.payload.command);
+    console.log(e.payload.config);
+    console.log(e.payload.exIndex);
 
-  if (e.payload.command == 0) {
-    if (e.payload.config == 0) {
-      console.log("Pebble requested global configuration information.");
-      sendGlobalConfig();
+    if (e.payload.command == 0) {
+      if (e.payload.config == 0) {
+        console.log("Pebble requested global configuration information.");
+        sendGlobalConfig();
+      }
+
+      if (e.payload.config == 1) {
+        console.log("Pebble requested exchange configuration information.");
+        sendExConfig();
+      }
     }
 
-    if (e.payload.config == 1) {
-      console.log("Pebble requested exchange configuration information.");
-      sendExConfig();
+    if (e.payload.command == 1) {
+      console.log("Pebble requested prices for an exchange.");
+      sendExPrices(e.payload.exIndex);
     }
-  }
-
-  if (e.payload.command == 1) {
-    console.log("Pebble requested prices for an exchange.");
-    sendExPrices(e.payload.exIndex);
-  }
-
-  /*
-  if (e.payload.command == 1) {
-  console.log("Received request to fetch prices from exchanges.");
-  fetchBitstampPrice();
-  fetchMtGoxPrice();
-  fetchBtcePrice();
-}
-*/
   }
 );
