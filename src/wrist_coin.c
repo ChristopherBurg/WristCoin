@@ -137,12 +137,13 @@ static char * strdyncpy(char *dest, const char *source) {
       dest = NULL;
     }
 
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Copying '%s' into dest.", source);
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Reallocating memory for dest. Will allocate %d byets.", (strlen(source) + 1));
     dest = (char *) malloc(sizeof(char) * (strlen(source) + 1));
 
     if (dest != NULL) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 136, "Memory for dest allocated. Copying contents from source into dest.");
-      strncpy(dest, source, strlen(source));
+      strncpy(dest, source, strlen(source) + 1);
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 138, "dest now contains '%s'.", dest);
     } else {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 374, "Something went horribly wrong. ex_data_list[i].ex_status memory wasn't allocated.");
@@ -151,6 +152,68 @@ static char * strdyncpy(char *dest, const char *source) {
   } else {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 124, "You can't pass a NULL source value into set_ex_status, dummy.");
   }
+
+  return dest;
+}
+
+/* Some price values, namely 24-hour volumes, can exceed the maximum size of a
+ * 32-bit integer. Since the largest integer the Pebble JavaScript application
+ * can send is 32-bit this creates a problem. To get around this problem large
+ * integers are broken up into byte arrays and fed to this function to be
+ * converted to a 64-bit integer.
+ *
+ * Tuple *bytes - A Tuple containing a byte array.
+ */
+static int64_t convert_bytes_to_int64(Tuple *bytes) {
+  int64_t unpacked = 0;
+  int64_t temp = 0;
+
+  // Unpack the byte array by shifting each byte into the int64_t value.
+  for (unsigned int i = 0; i < bytes->length; ++i) {
+    temp = bytes->value->data[i];
+    temp <<= (8 * (bytes->length - 1 - i));
+    unpacked |= temp;
+  }
+
+  return unpacked;
+}
+
+static char * format_dollars(char *dest, int32_t price) {
+  char *dollars = NULL;
+  int32_t digits = 0;
+  int32_t characteristic = 0;
+  int32_t mantissa = 0;
+
+  // In order to know how much memory to allocate we need to know how many
+  // digits long the price is.
+  if (price < 100) {
+    // The minimum value that can be printed by this function is '$ 0.00'. If
+    // the price is less than 100 then three digits should be reserved.
+    digits = 3;
+  } else {
+    int32_t temp = price;
+    digits++;
+
+    while (temp >= 10) {
+      digits++;
+      temp /= 10;
+    }
+  }
+
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 200, "%ld is %ld digits long. Allocating %ld bytes for dollar string.", price, digits, (digits + 4));
+  dollars = (char *) malloc(digits + 4);
+
+  characteristic = price / 100;
+  mantissa = price - (characteristic * 100);
+  snprintf(dollars, digits + 4, "$ %ld.%02ld", characteristic, mantissa);
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Formatted dollar string is '%s'.", dollars);
+
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Copying dollar string into dest.");
+  dest = strdyncpy(dest, dollars);
+
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 209, "Freeing temporary dollar string.");
+  free(dollars);
+  dollars = NULL;
 
   return dest;
 }
@@ -208,37 +271,36 @@ static ExchangeData* get_data_for_exchange(int index) {
   return &exchange_data_list[index];
 }
 
+/* Returns the ExData record for the exchange at index.
+ */
 static ExData* get_ex_data(int index) {
-  if (index < 0 || index >= NUMBER_OF_EXCHANGES) {
+  if (index < 0 || index >= num_ex) {
     return NULL;
   }
 
   return &ex_data_list[index];
 }
 
-/* Sets the price fields to "Loading..." so the displayed information read
-"Loading..." while exchange information is being fetched.
-*/
-static void set_status_to_loading(void) {
-  for (int i = 0; i < NUMBER_OF_EXCHANGES; i++) {
-    exchange_data_list[i].last = -1;
-  }
-
-  menu_layer_reload_data(exchange_menu);
+/* Sets the status field for a selected exchange to "Loading...".
+ *
+ * int index - The index of the exchange to set the status for.
+ */
+static void set_stat_to_loading(int index) {
+  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_loading);
 }
 
-/* Sets the price field for a selected exchange to "Error..." This is used to
-indicate an error occurring when trying to fetch data from an exchange.
-*/
-static void set_status_to_error(int index) {
-  exchange_data_list[index].last = -2;
-
-  menu_layer_reload_data(exchange_menu);
+/* Sets the status field for a selected exchange to "Error...".
+ *
+ * int index - The index of the exchange to set the status for.
+ */
+static void set_stat_to_error(int index) {
+  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_error);
 }
 
 /* Asks the JavaScript code loaded on the smartphone's Pebble app to fetch
 prices from Bitcoin exchanges.
 */
+// TODO: Remove this function.
 static void fetch_message(void) {
   /*
   Tuplet fetch = TupletInteger(WC_KEY_FETCH, 1);
@@ -307,7 +369,7 @@ static void fetch_ex_price(int exchange) {
   Tuplet command = TupletInteger(WC_KEY_COMMAND, 1);
   Tuplet index = TupletInteger(WC_KEY_EX_INDEX, exchange);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 310, "Fetching prices for %s. Sending index value %d.", ex_data_list[exchange].ex_name, exchange);
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 310, "fetch_ex_price: Fetching prices for %s. Sending index value %d.", ex_data_list[exchange].ex_name, exchange);
 
   DictionaryIterator *iter;
   app_message_outbox_begin(&iter);
@@ -321,14 +383,6 @@ static void fetch_ex_price(int exchange) {
   dict_write_end(iter);
 
   app_message_outbox_send();
-}
-
-static void out_sent_handler(DictionaryIterator *sent, void *context) {
-
-}
-
-static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 114, "ERROR: error %d occurred while trying to send data to the phone.\n", reason);
 }
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
@@ -352,54 +406,27 @@ static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *
 JavaScript code to fetch prices from the exchanges again.
 */
 static void select_long_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
-  set_status_to_loading();
-  fetch_message();
+//  set_status_to_loading();
+//  fetch_message();
 }
 
 static int16_t get_cell_height_callback(struct MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   return 44;
 }
 
+/* Returns the number of rows in the menu. The number of rows is equal to the
+ * number of exchanges the user has selected.
+ */
 static uint16_t get_num_rows_callback(struct MenuLayer *menu_layer, uint16_t section_index, void *data) {
-//  return NUMBER_OF_EXCHANGES;
   return num_ex;
 }
 
-/* Reads the data for each exchange and prints the appropriate output to the
-screen. Generally this value will be a Bitcoin price but messages such as
-"Loading..." and "Error..." can be dispalyed.
-*/
+/* Redraws a menu item that has changed. Typically this means that the status
+ * tied to the row's exchange has changed. This function simply recopies the
+ * exchange name and exchange status to the menu row.
+ */
 static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_index, void *data) {
-  ExData *ex_data;
-  const int index = cell_index->row;
-  char last[PRICE_FIELD_LENGTH];
-
-  if ((ex_data = get_ex_data(index)) == NULL) {
-    return;
-  }
-
-  /* There are times when I want to display status messages on the menu. To
-  accomplish this negative numbers are treated as status messages and
-  positive numbers are treated as prices to be displayed. The numbers and
-  their status messages are:
-
-  -1 = Loading...
-  -2 = Error...
-  */
-  /*
-  switch(exchange_data->last) {
-  case -1:
-  snprintf(last, PRICE_FIELD_LENGTH, "Loading...");
-  break;
-  case -2:
-  snprintf(last, PRICE_FIELD_LENGTH, "Error...");
-  break;
-  default:
-  format_as_dollars(last, exchange_data->last);
-}
-*/
-
-  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[index].ex_name, ex_data_list[index].ex_status, NULL);
+  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[cell_index->row].ex_name, ex_data_list[cell_index->row].ex_status, NULL);
 }
 
 /*
@@ -419,7 +446,7 @@ static void load_global_config(DictionaryIterator *config) {
   // to "Loading...".
   for (int i = 0; i < num_ex->value->int32; i++) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 404, "Copying 'Loading...' into exchange %d.", i);
-    ex_data_list[i].ex_status = strdyncpy(ex_data_list[i].ex_status, stat_loading);
+    set_stat_to_loading(i);
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_data_list[i].ex_status);
   }
 
@@ -428,7 +455,7 @@ static void load_global_config(DictionaryIterator *config) {
   menu_layer_set_selected_index(exchange_menu, (MenuIndex) {0, 0}, MenuRowAlignNone, false);
 
   // Now that the global configuration has been changed the configuration for
-  // the exchanges needs to be updated.
+  // the exchanges need to be updated.
   fetch_ex_config();
 }
 
@@ -447,7 +474,6 @@ static void load_ex_config(DictionaryIterator *config) {
 
     if (ex_name) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 435, "Exchange name is '%s'. Copying it now.", ex_name->value->cstring);
-//      strncpy(ex_data_list[index].ex_name, ex_name->value->cstring, EXCHANGE_NAME_LENGTH);
       ex_data_list[index].ex_name = strdyncpy(ex_data_list[index].ex_name, ex_name->value->cstring);
       app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 438, "'%s' finshed copying.", ex_data_list[index].ex_name);
     }
@@ -496,6 +522,8 @@ static void load_ex_prices(DictionaryIterator *prices) {
   app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 233, "Entered load_ex_prices.");
 
   if (ex_index) {
+    char *stat = NULL;
+
     Tuple *ex_low = dict_find(prices, WC_KEY_EX_LOW);
     Tuple *ex_high = dict_find(prices, WC_KEY_EX_HIGH);
     Tuple *ex_avg = dict_find(prices, WC_KEY_EX_AVG);
@@ -523,39 +551,43 @@ static void load_ex_prices(DictionaryIterator *prices) {
       ex_data_list[index].last = ex_last->value->int32;
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a last of %ld.", ex_data_list[index].ex_name, ex_last->value->int32);
     }
+
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index].avg);
+    stat = format_dollars(stat, ex_data_list[index].avg);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 591, "Loading formatted string '%s' into status field.", stat);
+    ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat);
   }
 }
 
-/*
-* A handler for incoming messages from the Pebble app. It looks at the message
-* type and passes the DictionaryIterator off to the appropriate function for
-* processing.
-*
-*/
+/* A handler for incoming messages from the Pebble app. It looks at the message
+ * type and passes the DictionaryIterator off to the appropriate function for
+ * processing.
+ *
+ */
 static void in_received_handler(DictionaryIterator *received, void *context) {
   Tuple *command = dict_find(received, WC_KEY_COMMAND);
 
   /*
-  * Processes command type messages.
-  */
+   * Processes command type messages.
+   */
   if (command) {
     int32_t command_type = command->value->int32;
 
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 203, "Received a command from the phone.");
 
     /*
-    * Command 0 contains configuration information processable by the
-    * load_ex_config function.
-    */
+     * Command 0 contains configuration information processable by the
+     * load_ex_config function.
+     */
     if (command_type == 0) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Command was an exchange configuration.");
       load_config(received);
     }
 
     /*
-    * Command 1 contains price information for an exchange that is
-    * processable by the load_ex_prices function.
-    */
+     * Command 1 contains price information for an exchange that is
+     * processable by the load_ex_prices function.
+     */
     if (command_type == 1) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 250, "Command was an exchange price list.");
       load_ex_prices(received);
@@ -565,6 +597,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
   menu_layer_reload_data(exchange_menu);
 }
 
+// TODO: Remove this function.
 static void OLD_in_received_handler(DictionaryIterator *received, void *context) {
   Tuple *exchange = dict_find(received, WC_KEY_EXCHANGE);
   Tuple *error = dict_find(received, WC_KEY_ERROR);
@@ -582,7 +615,7 @@ static void OLD_in_received_handler(DictionaryIterator *received, void *context)
 
     if (error) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 198, "Received an error from the phone.");
-      set_status_to_error(index);
+//      set_status_to_error(index);
     } else {
       if (low) {
         exchange_data_list[index].low = low->value->int32;
@@ -635,9 +668,26 @@ static void OLD_in_received_handler(DictionaryIterator *received, void *context)
 }
 
 static void in_dropped_handler(AppMessageResult reason, void *context) {
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 195, "ERROR: error %d occurred while trying to receive data from the phone.\n", reason);
-  //    psleep(500);
-  //    fetch_failed_messages();
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 195, "in_dropped_handler: error %d occurred while trying to receive data from the phone.\n", reason);
+}
+
+static void out_sent_handler(DictionaryIterator *sent, void *context) {
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 677, "out_sent_handler: Sent a record from the Pebble to the phone.");
+}
+
+static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 114, "out_failed_handler: error %d occurred while trying to send data to the phone.\n", reason);
+
+  Tuple *command = dict_find(failed, WC_KEY_COMMAND);
+  Tuple *ex_index = dict_find(failed, WC_KEY_EX_INDEX);
+
+  if (command) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 677, "out_failed_handler: The command that failed to send was %ld.", command->value->int32);
+  }
+
+  if (ex_index) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 681, "out_failed_handler: The exchange index that failed to send was %ld.", ex_index->value->int32);
+  }
 }
 
 static void click_config_provider(void *context) {
@@ -661,12 +711,7 @@ static void window_load(Window *window) {
   menu_layer_set_click_config_onto_window(exchange_menu, window);
   layer_add_child(window_layer, menu_layer_get_layer(exchange_menu));
 
-//  set_status_to_loading();
-
   fetch_global_config();
-
-  /* This kicks off the fetch messages command, which is being replaced. */
-  //    fetch_message();
 }
 
 static void window_unload(Window *window) {

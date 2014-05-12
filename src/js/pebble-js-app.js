@@ -1,6 +1,6 @@
 /* Takes a hexadecimal string and converts it to a byte array. This function is
-primarily used as a way to send numbers larger than 32-bit to the Pebble.
-*/
+ * primarily used as a way to send numbers larger than 32-bit to the Pebble.
+ */
 function convertHexStringToByteArray(string) {
   var byte_array = new Array();
   var i = 0;
@@ -30,29 +30,86 @@ Pebble.addEventListener("ready",
   }
 );
 
+/* The Pebble is only capable of receiving one message at a time. Since much of
+ * this app is asynchronous it's possible, and in testing quite common, for
+ * multiple messages to be generated simultaneously. To ensure problems related
+ * related to sending message at the same time are avoided this program uses a
+ * message stack. When a function wants to send a message to the Pebble it calls
+ * sendMessageToPebble, which pushes the message onto the stack and then tells
+ * the app to begin sending messages if it's not already doing so.
+ */
+var messageStack = new Array();
+var isSending = false;
+var messageSender;
+
+/* This function is charged with actually sending message to the Pebble. When
+ * called it pops the first message off of the stack and attempts to send it.
+ * This function is called continously via setInterval until the stack is empty.
+ */
+function sendMessage() {
+  if (messageStack.length == 0) {
+    clearInterval(messageSender);
+    isSending = false;
+  } else {
+    var messageToSend = messageStack.pop();
+
+    var successHandler = function(event) {
+      console.log("Successfully sent " + event.data.transactionId + " to Pebble.");
+    }
+
+    var errorHandler = function(event) {
+      console.log("Failed to send " + event.data.transactionId + " to Pebble.");
+      messageStack.push(messageToSend);
+    }
+
+    console.log("Sending message to Pebble");
+    console.log("Message contains command '" + messageToSend.command + "' and exchange index '" + messageToSend.exIndex + ".");
+    Pebble.sendAppMessage(messageToSend,
+                          successHandler,
+                          errorHandler);
+  }
+}
+
+/* This function takes a message and pushes it onto the message stack. If the
+ * program isn't already sending messages this function then tells it to start
+ * sending. Otherwise the function returns.
+ *
+ * message - The message to push onto the message stack.
+ */
 function sendMessageToPebble(message) {
+  messageStack.push(message);
+
+  if (!isSending) {
+    messageSender = setInterval(sendMessage, 250);
+  }
+}
+
+function OLD_sendMessageToPebble(message) {
   var successHandler = function(event) {
     console.log("Successfully sent " + event.data.transactionId + " to Pebble.");
   }
 
-  /* The Pebble can only process one message at a time. Since message come in
-  as they arrive from the exchange they can oftentimes send before a
-  previous message has complete processing. To work around this any
-  message that fails to send will cause the application to wait one second
-  for the message buffer to clear before resending the message.
-
-  It's not pretty or elegant but it works.
+  /* The Pebble can only process one message at a time. Since messages come in
+   * as they arrive from the exchange they can oftentimes send before a
+   * previous message has complete processing. To work around this any
+   * message that fails to send will cause the application to wait for a period
+   * between one and two seconds before resending.
+   *
+   * It's not pretty or elegant but it works.
   */
   var errorHandler = function(event) {
+    var delay = Math.floor(Math.random() * (2000 - 1000) + 1000);
     console.log("Failed to send " + event.data.transactionId + " to Pebble.");
     console.log("Error message for " + event.data.transactionId + " was " + event.error + ".");
-    setTimeout(sendMessageToPebble(message), 1000);
+    console.log("Delaying resend for " + (delay / 1000) + " seconds.");
+    setTimeout(sendMessageToPebble(message), delay);
   }
 
   console.log("Sending message to Pebble");
+  console.log("Message contains command '" + message.command + "' and exchange index '" + message.exIndex + ".");
   Pebble.sendAppMessage(message,
-    successHandler,
-    errorHandler);
+                        successHandler,
+                        errorHandler);
 }
 
 // Gets the curret price list from Bitstamp.
@@ -89,16 +146,13 @@ function fetchBitstampPrice() {
 
         console.log(volume);
 
+        console.log("Sending prices for Bitstamp. Hold on to your butts.");
         sendMessageToPebble({"command" : 1,
                              "exIndex" : 0,
                              "exLow" : low,
                              "exHigh" : high,
                              "exAvg" : average,
-                             "exLast" : last,
-//                             "average" : average,
-//                             "buy" : buy,
-//                             "sell" : sell,
-//                             "volume" : volume_bytes
+                             "exLast" : last
                             });
 
       } else {
@@ -254,6 +308,15 @@ function fetchBtcePrice() {
 
       console.log(volume);
 
+      console.log("Sending prices for BTC-e. Hold on to your butts.");
+      sendMessageToPebble({"command" : 1,
+                           "exIndex" : 1,
+                           "exLow" : low,
+                           "exHigh" : high,
+                           "exAvg" : average,
+                           "exLast" : last
+                          });
+/*
       sendMessageToPebble({"exchange" : 2,
                            "high" : high,
                            "low" : low,
@@ -263,6 +326,7 @@ function fetchBtcePrice() {
                            "sell" : sell,
                            "volume" : volume_bytes
                           });
+*/
 
       } else {
         console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
