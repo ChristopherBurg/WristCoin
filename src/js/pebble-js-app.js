@@ -262,6 +262,90 @@ function fetchBtcePrice() {
   req.send(null);
 }
 
+function fetchBitfinexPrice() {
+  var req = new XMLHttpRequest();
+
+  var onloadHandler = function(event) {
+    var successHandler = function(event) {
+      console.log("Successfully sent Bitfinex prices to Pebble.");
+    }
+
+    var errorHandler = function(event) {
+      console.log("Error sending Bitfinex prices to Pebble.");
+    }
+
+    console.log("Bitfinex response received!");
+
+    if (req.readyState == 4) {
+      if (req.status == 200) {
+
+        console.log(req.responseText);
+
+        try {
+          var response = JSON.parse(req.responseText);
+        } catch (e) {
+          sendMessageToPebble({"exchange" : 2,
+                               "error" : 2
+        });
+        return;
+      }
+
+      var high = parseInt(response.high * 100);
+      var low = parseInt(response.low * 100);
+      var last = parseInt(response.last_price * 100);
+      // Like Bitstamp, Bitfinex doesn't report an average that I know of.
+      var average = parseInt((high + low) / 2);
+//      var buy = parseInt(response.ticker.buy * 100);
+//      var sell = parseInt(response.ticker.sell * 100);
+
+      var volume = parseInt(response.volume * 100000000).toString(16);
+      var volume_bytes = convertHexStringToByteArray(volume);
+
+      console.log(volume);
+
+      console.log("Sending prices for Bitfinex. Hold on to your butts.");
+      sendMessageToPebble({"command" : 1,
+                           "exIndex" : 2,
+                           "exLow" : low,
+                           "exHigh" : high,
+                           "exAvg" : average,
+                           "exLast" : last
+                          });
+/*
+      sendMessageToPebble({"exchange" : 2,
+                           "high" : high,
+                           "low" : low,
+                           "last" : last,
+                           "average" : average,
+                           "buy" : buy,
+                           "sell" : sell,
+                           "volume" : volume_bytes
+                          });
+*/
+
+      } else {
+        console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
+        sendMessageToPebble({"exchange" : 2,
+                             "error" : 0
+                            });
+      }
+    } else {
+      console.log("Didn't received ready status of 4. Received " + req.readyState.toString() + " instead.");
+      sendMessageToPebble({"exchange" : 2,
+                           "error" : 1
+                          });
+    }
+  }
+
+  console.log("Fetching Bitfinex prices.");
+
+  req.onload = onloadHandler;
+
+  req.open("GET", "https://api.bitfinex.com/v1/pubticker/btcusd", true);
+
+  req.send(null);
+}
+
 /* Remember when Mt. Gox was a thing? Well it's not anymore but this code
  * remains as a method of testing disabled exchanges. It will eventually be
  * removed.
@@ -363,13 +447,20 @@ req.send(null);
  */
 var exchanges = [{"exName" : "Bitstamp",
                   "isEnabled" : true,
-                  "priceLookup" : function() { fetchBitstampPrice() }},
+                  "priceLookup" : function() { fetchBitstampPrice() }
+                 },
                  {"exName" : "BTC-e",
                   "isEnabled" : true,
-                  "priceLookup" : function () { fetchBtcePrice() }},
+                  "priceLookup" : function () { fetchBtcePrice() }
+                 },
+                 {"exName" : "Bitfinex",
+                  "isEnabled" : true,
+                  "priceLookup" : function () { fetchBitfinexPrice() }
+                 },
                  {"exName" : "Mt. Gox",
                   "isEnabled" : false,
-                  "priceLookup" : function () { fetchMtGoxPrice() }}
+                  "priceLookup" : function () { fetchMtGoxPrice() }
+                 }
                 ];
 
 /* Takes an index and goes through the list of enabled exchanges until it finds
