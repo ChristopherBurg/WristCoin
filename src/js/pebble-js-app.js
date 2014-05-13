@@ -24,12 +24,6 @@ function convertHexStringToByteArray(string) {
   return byte_array;
 }
 
-Pebble.addEventListener("ready",
-  function(e) {
-    console.log("Wrist Coin is ready.");
-  }
-);
-
 /* The Pebble is only capable of receiving one message at a time. Since much of
  * this app is asynchronous it's possible, and in testing quite common, for
  * multiple messages to be generated simultaneously. To ensure problems related
@@ -39,17 +33,45 @@ Pebble.addEventListener("ready",
  * the app to begin sending messages if it's not already doing so.
  */
 var messageStack = new Array();
-var isSending = false;
+/* A counter to determine the number of times the sendMessage function has been
+ * called on an empty messageStack. After 10 intervals the messageSender should
+ * be cleared and this variable reset to 0.
+ */
+var iterations = 0;
 var messageSender;
 
 /* This function is charged with actually sending message to the Pebble. When
  * called it pops the first message off of the stack and attempts to send it.
  * This function is called continously via setInterval until the stack is empty.
+ * When the stack appears to be empty the sendMessage interval is clocked down
+ * so any stragling messages can be pushed onto the stack. If no messages appear
+ * for 10 iterations then messageSender is cleared.
  */
 function sendMessage() {
+  var messageSender;
   if (messageStack.length == 0) {
-    clearInterval(messageSender);
-    isSending = false;
+    /* Keep checking the message stack for straglers.
+     */
+    if (iterations < 5) {
+      console.log("Message stack appears to be empty.");
+      iterations++;
+    /* If no messages appear on the stack after five iterations clock the
+     * interval down to once a second.
+     */
+    } else if ((iterations >= 5) && (iterations < 10)) {
+      console.log("Clocking down sendMessage interval time to 1 second.");
+      iterations++;
+      clearInterval(messageSender);
+      messageSender = setInterval(sendMessage, 1000);
+    /* If nothing has appeared on the stack after 10 iterations then it's
+     * probably not going to happen. Clear messageSender and reset the interval
+     * count to 0.
+     */
+    } else if (iterations >= 10) {
+      console.log("No messages appeared on the stack in the last 10 seconds. Clearing sendMessage interval.");
+      iterations = 0;
+      clearInterval(messageSender);
+    }
   } else {
     var messageToSend = messageStack.pop();
 
@@ -61,6 +83,12 @@ function sendMessage() {
       console.log("Failed to send " + event.data.transactionId + " to Pebble.");
       messageStack.push(messageToSend);
     }
+
+    /* This function is only called when another function is trying to send a
+     * message to the Pebble. Since that necessarily means the stack isn't empty
+     * reset iterations to 0.
+     */
+    iterations = 0;
 
     console.log("Sending message to Pebble");
     console.log("Message contains command '" + messageToSend.command + "' and exchange index '" + messageToSend.exIndex + ".");
@@ -76,15 +104,92 @@ function sendMessage() {
  *
  * message - The message to push onto the message stack.
  */
+function OLD_sendMessageToPebble(message) {
+  messageStack.push(message);
+
+  clearInterval(messageSender);
+  /* Call setIntervale here. Doing it in the sendMessage function causes the
+   * setInterval function not to work for some reason. Unless the app is being
+   * monitored with 'pebble logs' the sendMessage function never gets called.
+   *
+   * I'll look into this more later.
+   */
+  messageSender = setInterval(sendMessage, 250);
+}
+
+/* This variable is set to true when sendMessageToPebble's internal sending
+ * function, messageSender, is running. Use this flag to ensure there isn't
+ * several instances of messageSender running simultaneously.
+ */
+var isSending = false;
+
+/* When a function wants to send a message to the Pebble it should send that
+ * message to this function. Upon being called this function pushes the new
+ * message to messageStack. If isSending is false then this function calls its
+ * internal helper function, messageSender. Otherwise it returns.
+ */
 function sendMessageToPebble(message) {
+  /* When messageStack is empty the messageSender function will check it a few
+   * more times to make sure no straglers show up. By default it checks ten
+   * times. After the fifth time it clocks down from checking it every
+   * defaultTime milliseconds to extendedTime milliseconds.
+   */
+  var defaultTime = 100;
+  var extendedTime = 1000;
+
+  var messageSender = function(iEmpty) {
+    console.log("messageSender: Entered messageSender. iEmpty is " + iEmpty + ".");
+    if (messageStack.length == 0) {
+      /* Keep checking the message stack for straglers.
+       */
+      if (iEmpty < 5) {
+        console.log("Message stack appears to be empty.");
+        setTimeout(function() { messageSender(iEmpty + 1) }, defaultTime);
+      /* If no messages appear on the stack after five iterations clock the
+       * interval down to once a second.
+       */
+      } else if ((iEmpty >= 5) && (iEmpty < 10)) {
+        console.log("Clocking down sendMessage interval time to 1 second.");
+        setTimeout(function() { messageSender(iEmpty + 1) }, extendedTime)
+      /* If nothing has appeared on the stack after 10 iterations then it's
+       * probably not going to happen. Clear messageSender and reset the interval
+       * count to 0.
+       */
+      } else if (iEmpty >= 10) {
+        isSending = false;
+      }
+    } else {
+      var messageToSend = messageStack.pop();
+
+      var successHandler = function(event) {
+        console.log("Successfully sent " + event.data.transactionId + " to Pebble.");
+        setTimeout(function() { messageSender(0) }, defaultTime);
+      }
+
+      var errorHandler = function(event) {
+        console.log("Failed to send " + event.data.transactionId + " to Pebble.");
+        messageStack.push(messageToSend);
+        setTimeout(function() { messageSender(0) }, defaultTime);
+      }
+
+      isSending = true;
+      console.log("Sending message to Pebble");
+      console.log("Message contains command '" + messageToSend.command + "' and exchange index '" + messageToSend.exIndex + ".");
+      Pebble.sendAppMessage(messageToSend,
+                            successHandler,
+                            errorHandler);
+
+    }
+  }
+
   messageStack.push(message);
 
   if (!isSending) {
-    messageSender = setInterval(sendMessage, 250);
+    setTimeout(function() { messageSender(0) }, 0);
   }
 }
 
-function OLD_sendMessageToPebble(message) {
+function OLDER_sendMessageToPebble(message) {
   var successHandler = function(event) {
     console.log("Successfully sent " + event.data.transactionId + " to Pebble.");
   }
@@ -148,7 +253,7 @@ function fetchBitstampPrice() {
 
         console.log("Sending prices for Bitstamp. Hold on to your butts.");
         sendMessageToPebble({"command" : 1,
-                             "exIndex" : 0,
+                             "exIndex" : getEnabledIndexByName("Bitstamp"),
                              "exLow" : low,
                              "exHigh" : high,
                              "exAvg" : average,
@@ -221,23 +326,12 @@ function fetchBtcePrice() {
 
       console.log("Sending prices for BTC-e. Hold on to your butts.");
       sendMessageToPebble({"command" : 1,
-                           "exIndex" : 1,
+                           "exIndex" : getEnabledIndexByName("BTC-e"),
                            "exLow" : low,
                            "exHigh" : high,
                            "exAvg" : average,
                            "exLast" : last
                           });
-/*
-      sendMessageToPebble({"exchange" : 2,
-                           "high" : high,
-                           "low" : low,
-                           "last" : last,
-                           "average" : average,
-                           "buy" : buy,
-                           "sell" : sell,
-                           "volume" : volume_bytes
-                          });
-*/
 
       } else {
         console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
@@ -305,23 +399,12 @@ function fetchBitfinexPrice() {
 
       console.log("Sending prices for Bitfinex. Hold on to your butts.");
       sendMessageToPebble({"command" : 1,
-                           "exIndex" : 2,
+                           "exIndex" : getEnabledIndexByName("Bitfinex"),
                            "exLow" : low,
                            "exHigh" : high,
                            "exAvg" : average,
                            "exLast" : last
                           });
-/*
-      sendMessageToPebble({"exchange" : 2,
-                           "high" : high,
-                           "low" : low,
-                           "last" : last,
-                           "average" : average,
-                           "buy" : buy,
-                           "sell" : sell,
-                           "volume" : volume_bytes
-                          });
-*/
 
       } else {
         console.log("HTTP status returned was not 200. Received " + req.status.toString() + " instead.");
@@ -438,72 +521,57 @@ req.open("GET", "https://data.mtgox.com/api/2/BTCUSD/money/ticker", true);
 req.send(null);
 }
 
-/* An array containing a list of all available exchanges and whether or not the
- * user has enabled them.
+/* An array containing a list of all available exchanges.
  *
  * Each exchange has an associated hashtable. Each hashtable includes the
- * exchanges name, whether it's enabled by the user, and the function called to
- * fetches the current prices.
+ * exchanges name and the function called to fetches its current prices.
  */
 var exchanges = [{"exName" : "Bitstamp",
-                  "isEnabled" : true,
                   "priceLookup" : function() { fetchBitstampPrice() }
                  },
                  {"exName" : "BTC-e",
-                  "isEnabled" : true,
                   "priceLookup" : function () { fetchBtcePrice() }
                  },
                  {"exName" : "Bitfinex",
-                  "isEnabled" : true,
                   "priceLookup" : function () { fetchBitfinexPrice() }
                  },
                  {"exName" : "Mt. Gox",
-                  "isEnabled" : false,
                   "priceLookup" : function () { fetchMtGoxPrice() }
                  }
                 ];
 
-/* Takes an index and goes through the list of enabled exchanges until it finds
- * the one desired.
- *
- * index - The enabled exchange's index. This number differs from the index of
- *         of each individual exchange. If there are 10 available exchanges and
- *         only 1,3,5, and 7 are enabled and index equals 2 then exchange 5, the
- *         third enabled exchange, will be returned.
+/* An array of enabled exchanges. Exchanges added to this array will be
+ * considered enabled and therefore have their prices looked up and send to the
+ * Pebble.
  */
-function getExEnabled(index) {
-  var ex;
-  var enabled = 0;
+var enabledEx = new Array();
 
-  while (enabled <= index) {
-    if (exchanges[enabled].isEnabled && enabled == index) {
-      console.log("Obtained enabled exchange at index " + index + ". Exchange is " + exchanges[enabled] + ".");
-      ex = exchanges[enabled];
-    }
-
-    enabled++;
-  }
-
-  return ex;
+/* Checks what exchanges the user has enabled and pushes them into the enabledEx
+ * array. This function should be called at startup and whenever the user
+ * enables or disables an exchange.
+ */
+function loadEnabledExchanges() {
+  // TODO: Swap out this hardcoded test with user selected exchanges.
+  enabledEx.push(exchanges[0]);
+  enabledEx.push(exchanges[1]);
+  enabledEx.push(exchanges[2]);
 }
 
-/* Iterates through all of the available exchanges and returns the number of
- * exchanges that have been enabled by the user.
+/* The price lookup functions need the ability to include the index of their
+ * cooresponding exchange from the enabledEx array. This function facilitates
+ * that ability to taking the name of the exchange and returning its index in
+ * the enabledEx array.
+ *
+ * name - The name of the exchange as it appears in enabledEx.exName.
  */
-function getNumExEnabled() {
-  var enabled = 0;
+function getEnabledIndexByName(name) {
+  var index = 0;
 
-  for (var i = 0; i < exchanges.length; i++) {
-    if (exchanges[i].isEnabled) {
-      console.log("Exchange " + exchanges[i].exName + " is enabled.");
-      enabled++;
-    } else {
-      console.log("Exchange " + exchanges[i].exName + " is disabled.");
-    }
+  while ((enabledEx[index].exName != name) && (index < enabledEx.length)) {
+    index++;
   }
 
-  console.log(enabled + " exchanges are enabled.");
-  return enabled;
+  return index;
 }
 
 /* This function send global configuration information to the Pebble. Global
@@ -511,34 +579,27 @@ function getNumExEnabled() {
  * with an individual exchange.
  */
 function sendGlobalConfig() {
-  var numExEnabled = getNumExEnabled();
+//  var numExEnabled = getNumExEnabled();
 
   console.log("Sending global configuration.");
   sendMessageToPebble({"command" : 0,
                        "config" : 0,
-                       "numEx" : numExEnabled,
+                       "numEx" : enabledEx.length,
                       });
 }
 
 /* This function sends configuration information for each enabled exchange.
  */
 function sendExConfig() {
-  var countEnabled = 0;
   console.log("Pebble has requested exchange configurations. Sending test configs now.");
 
-  /* Iterate through all of the available exchanges. If an exchange has been
-   * enabled by the user send its configuration information.
-   */
-  for (var i = 0; i < exchanges.length; i++) {
-    if (exchanges[i].isEnabled) {
-      console.log(exchanges[i].exName + " is enabled. Sending its configuration information.");
-      sendMessageToPebble({"command" : 0,
-                           "config" : 1,
-                           "exIndex" : countEnabled,
-                           "exName" : exchanges[i].exName
-                          });
-      countEnabled++;
-    }
+  for (var i = 0; i < enabledEx.length; i++) {
+    console.log(enabledEx[i].exName + " is enabled. Sending its configuraiton information.");
+    sendMessageToPebble({"command" : 0,
+                         "config" : 1,
+                         "exIndex" : i,
+                         "exName" : enabledEx[i].exName
+                        });
   }
 }
 
@@ -548,11 +609,19 @@ function sendExConfig() {
  * index - The index of the exchange to look up prices for.
  */
 function sendExPrices(index) {
-  var ex = getExEnabled(index);
-  console.log("Pebble requested prices for exchange " + ex.exName + ". Sending prices now.");
+//  var ex = getExEnabled(index);
+  console.log("Pebble requested prices for exchange " + enabledEx[index].exName + ". Sending prices now.");
 
-  ex.priceLookup();
+  enabledEx[index].priceLookup();
 }
+
+Pebble.addEventListener("ready",
+  function(e) {
+    console.log("Wrist Coin is ready.");
+    console.log("Enabling test exchanges.");
+    loadEnabledExchanges();
+  }
+);
 
 Pebble.addEventListener("appmessage",
   function(e) {
