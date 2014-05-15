@@ -38,13 +38,16 @@ const char *stat_error = "Error...\0";
  */
 typedef struct {
   char *ex_name;
-  char *ex_status;
   int32_t low;
   int32_t high;
   int32_t avg;
   int32_t last;
   int64_t vol;
 } ExData;
+
+typedef struct {
+  char *stat;
+} ExStat;
 
 /* The number of exchanges that the Pebble app has told this app the user has
  * selected. This number should only be altered by the update_global_config
@@ -58,6 +61,8 @@ static int32_t num_ex = 0;
  * variable because at any point this whole thing could be destroyed.
  */
 static ExData *ex_data_list = NULL;
+
+static ExStat *ex_stat_list = NULL;
 
 /* Frees all of the data allocated for the ex_data_list. First all of the
  * allocated variables for all of the ExData items are freed then ex_data_list
@@ -73,16 +78,30 @@ static void free_ex_data_list(void) {
         free(ex_data_list[i].ex_name);
         ex_data_list[i].ex_name = NULL;
       }
-
-      if (ex_data_list[i].ex_status != NULL) {
-        free(ex_data_list[i].ex_status);
-        ex_data_list[i].ex_status = NULL;
-      }
     }
 
     // Free the ex_data_list itself and set its pointer to NULL.
     free(ex_data_list);
     ex_data_list = NULL;
+  }
+}
+
+/* Frees all the variables used to store each exchange's statue, which are held
+ * in ex_stat_list. First each status is freed and set to NULL then ex_stat_list
+ * itself is freed and set to NULL. This function should only be called from
+ * update_global_config and window_unload.
+ */
+static void free_ex_stat_list(void) {
+  if (ex_stat_list != NULL) {
+    for (int i = 0; i < num_ex; i++) {
+      if (ex_stat_list[i].stat != NULL) {
+        free(ex_stat_list[i].stat);
+        ex_stat_list[i].stat = NULL;
+      }
+    }
+
+    free(ex_stat_list);
+    ex_stat_list = NULL;
   }
 }
 
@@ -194,17 +213,23 @@ static char * format_dollars(char *dest, int32_t price) {
  *             to allocate the appropriate amount of memory for ex_data_list.
  */
 static ExData* update_global_config(int32_t new_num_ex) {
-  num_ex = new_num_ex;
 
   app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 75, "Global configuration change requested. Shit is going down.");
   // If ex_data_list has already been allocated dellocate it now.
   free_ex_data_list();
+  free_ex_stat_list();
+
+  /* The free_ex_data_list and free_ex_stat_list functions rely on the current
+   * value of num_ex. Call them first and then replace the current value with
+   * the new value.
+   */
+  num_ex = new_num_ex;
 
   app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 82, "Allocating ex_data_list.");
 
   // Allocate enough memory to store the configuration of all user selected
   // exchanges.
-  ex_data_list = (ExData*) malloc(sizeof(ExData) * num_ex);
+  ex_data_list = (ExData *) malloc(sizeof(ExData) * num_ex);
 
   if (ex_data_list == NULL) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 89, "Something went horribly wrong. ex_data_list is NULL.");
@@ -215,11 +240,24 @@ static ExData* update_global_config(int32_t new_num_ex) {
     // a bunch of random shit happen due to unknown memory contents.
     for (int i = 0; i < num_ex; i++) {
       ex_data_list[i].ex_name = NULL;
-      ex_data_list[i].ex_status = NULL;
       ex_data_list[i].low = 0;
       ex_data_list[i].high = 0;
       ex_data_list[i].avg = 0;
       ex_data_list[i].last = 0;
+    }
+  }
+
+  // We also need to allocate enough memory to store the status of each of the
+  // exchanges.
+  ex_stat_list = (ExStat *) malloc(sizeof(ExStat) * num_ex);
+
+  if (ex_stat_list == NULL) {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 258, "Something went horribly wrong. ex_stat_list is NULL.");
+  } else {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 260, "ex_stat_list allocated. Setting each status to NULL.");
+
+    for (int i = 0; i < num_ex; i++) {
+      ex_stat_list[i].stat = NULL;
     }
   }
 
@@ -241,7 +279,8 @@ static ExData* get_ex_data(int index) {
  * int index - The index of the exchange to set the status for.
  */
 static void set_stat_to_loading(int index) {
-  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_loading);
+//  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_loading);
+  ex_stat_list[index].stat = strdyncpy(ex_stat_list[index].stat, stat_loading);
 }
 
 /* Sets the status field for a selected exchange to "Error...".
@@ -249,7 +288,8 @@ static void set_stat_to_loading(int index) {
  * int index - The index of the exchange to set the status for.
  */
 static void set_stat_to_error(int index) {
-  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_error);
+//  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_error);
+  ex_stat_list[index].stat = strdyncpy(ex_stat_list[index].stat, stat_error);
 }
 
 /* Fetch the current configuration from the phone application.
@@ -359,7 +399,7 @@ static uint16_t get_num_rows_callback(struct MenuLayer *menu_layer, uint16_t sec
  * exchange name and exchange status to the menu row.
  */
 static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_index, void *data) {
-  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[cell_index->row].ex_name, ex_data_list[cell_index->row].ex_status, NULL);
+  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[cell_index->row].ex_name, ex_stat_list[cell_index->row].stat, NULL);
 }
 
 /*
@@ -380,7 +420,7 @@ static void load_global_config(DictionaryIterator *config) {
   for (int i = 0; i < num_ex->value->int32; i++) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 404, "Copying 'Loading...' into exchange %d.", i);
     set_stat_to_loading(i);
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_data_list[i].ex_status);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_stat_list[i].stat);
   }
 
   // When the global configuration is updated the exchange_menu is rebuilt. It's
@@ -494,7 +534,8 @@ static void load_ex_prices(DictionaryIterator *prices) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index].avg);
     stat = format_dollars(stat, ex_data_list[index].avg);
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 591, "Loading formatted string '%s' into status field.", stat);
-    ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat);
+//    ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat);
+    ex_stat_list[index].stat = strdyncpy(ex_stat_list[index].stat, stat);
   }
 }
 
@@ -587,6 +628,7 @@ static void window_unload(Window *window) {
   menu_layer_destroy(exchange_menu);
 
   free_ex_data_list();
+  free_ex_stat_list();
 }
 
 // Register any app message handlers.
