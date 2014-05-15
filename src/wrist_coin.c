@@ -2,6 +2,7 @@
 #include "exchange.h"
 #include "exchange_detail.h"
 #include "errors.h"
+#include "format.h"
 
 static Window *window;
 static MenuLayer *exchange_menu;
@@ -99,42 +100,19 @@ static void free_ex_stat_list(void) {
   }
 }
 
-/* Dynamic memory string copy. This function takes a dest and a source then
- * frees dest and sets it to NULL before allocating new memory and copying the
- * contents of source into dest. Obviously this function is destruction as all
- * get out. Whatever is in dest won't be there afer this function finishes.
- *
- * char *dest - The pointer to copy the contents of source to. This variable
- *              will be totally destroyed before the copy.
- *
- * char *source - The contents to copy into dest.
- */
-static char * strdyncpy(char *dest, const char *source) {
-  if (source != NULL) {
-    // We're going to deallocate and reallocate dest. This will ensure the size
-    // of dest and source are equal and the data is reliably copied.
-    if (dest != NULL) {
-      free(dest);
-      dest = NULL;
-    }
-
-//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Copying '%s' into dest.", source);
-//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Reallocating memory for dest. Will allocate %d byets.", (strlen(source) + 1));
-    dest = (char *) malloc(sizeof(char) * (strlen(source) + 1));
-
-    if (dest != NULL) {
-//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 136, "Memory for dest allocated. Copying contents from source into dest.");
-      strncpy(dest, source, strlen(source) + 1);
-//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 138, "dest now contains '%s'.", dest);
-    } else {
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 374, "Something went horribly wrong. ex_data_list[i].ex_status memory wasn't allocated.");
-    }
-
-  } else {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 124, "You can't pass a NULL source value into set_ex_status, dummy.");
+void set_ex_stat(int index, const char *src) {
+  if (ex_stat_list[index] != NULL) {
+    free(ex_stat_list[index]);
+    ex_stat_list[index] = NULL;
   }
 
-  return dest;
+//  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 35, "set_ex_name: Allocating %d bytes for ex_name.", (strlen(src) + 1));
+  ex_stat_list[index] = (char *) malloc(sizeof(char) * strlen(src) + 1);
+
+//  app_log(APP_LOG_LEVEL_DEBUG, "exchange.", 38, "set_ex_name: Copying %s into ex_name.", src);
+  strncpy(ex_stat_list[index], src, strlen(src) + 1);
+
+//  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 41, "set_ex_name: ex_name now contains %s.", data->ex_name);
 }
 
 /* Some price values, namely 24-hour volumes, can exceed the maximum size of a
@@ -157,46 +135,6 @@ static int64_t convert_bytes_to_int64(Tuple *bytes) {
   }
 
   return unpacked;
-}
-
-static char * format_dollars(char *dest, int32_t price) {
-  char *dollars = NULL;
-  int32_t digits = 0;
-  int32_t characteristic = 0;
-  int32_t mantissa = 0;
-
-  // In order to know how much memory to allocate we need to know how many
-  // digits long the price is.
-  if (price < 100) {
-    // The minimum value that can be printed by this function is '$ 0.00'. If
-    // the price is less than 100 then three digits should be reserved.
-    digits = 3;
-  } else {
-    int32_t temp = price;
-    digits++;
-
-    while (temp >= 10) {
-      digits++;
-      temp /= 10;
-    }
-  }
-
-//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 200, "%ld is %ld digits long. Allocating %ld bytes for dollar string.", price, digits, (digits + 4));
-  dollars = (char *) malloc(digits + 4);
-
-  characteristic = price / 100;
-  mantissa = price - (characteristic * 100);
-  snprintf(dollars, digits + 4, "$ %ld.%02ld", characteristic, mantissa);
-//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Formatted dollar string is '%s'.", dollars);
-
-//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Copying dollar string into dest.");
-  dest = strdyncpy(dest, dollars);
-
-//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 209, "Freeing temporary dollar string.");
-  free(dollars);
-  dollars = NULL;
-
-  return dest;
 }
 
 /* The nuclear option. This function wipes out the current configuration and
@@ -234,13 +172,6 @@ static ExData* update_global_config(int32_t new_num_ex) {
     // a bunch of random shit happen due to unknown memory contents.
     for (int i = 0; i < num_ex; i++) {
       ex_data_list[i] = create_ex_data();
-/*
-      ex_data_list[i].ex_name = NULL;
-      ex_data_list[i].low = 0;
-      ex_data_list[i].high = 0;
-      ex_data_list[i].avg = 0;
-      ex_data_list[i].last = 0;
-*/
     }
   }
 
@@ -276,8 +207,8 @@ static ExData* get_ex_data(int index) {
  * int index - The index of the exchange to set the status for.
  */
 static void set_stat_to_loading(int index) {
-//  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_loading);
-  ex_stat_list[index] = strdyncpy(ex_stat_list[index], stat_loading);
+//  ex_stat_list[index] = strdyncpy(ex_stat_list[index], stat_loading);
+  set_ex_stat(index, stat_loading);
 }
 
 /* Sets the status field for a selected exchange to "Error...".
@@ -285,8 +216,8 @@ static void set_stat_to_loading(int index) {
  * int index - The index of the exchange to set the status for.
  */
 static void set_stat_to_error(int index) {
-//  ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat_error);
-  ex_stat_list[index] = strdyncpy(ex_stat_list[index], stat_error);
+//  ex_stat_list[index] = strdyncpy(ex_stat_list[index], stat_error);
+  set_ex_stat(index, stat_error);
 }
 
 /* Fetch the current configuration from the phone application.
@@ -532,10 +463,13 @@ static void load_ex_prices(DictionaryIterator *prices) {
     }
 
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index]->avg);
-    stat = format_dollars(stat, ex_data_list[index]->avg);
+//    stat = format_dollars(stat, ex_data_list[index]->avg);
+    stat = create_format_dollars(ex_data_list[index]->avg);
+    set_ex_stat(index, stat);
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 591, "Loading formatted string '%s' into status field.", stat);
 //    ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat);
-    ex_stat_list[index] = strdyncpy(ex_stat_list[index], stat);
+//    ex_stat_list[index] = strdyncpy(ex_stat_list[index], stat);
+    destroy_format(stat);
   }
 }
 
