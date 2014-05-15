@@ -3,6 +3,37 @@
 static Window *window;
 static ScrollLayer *scroll_layer;
 
+static char *low = NULL;
+static char *high = NULL;
+static char *avg = NULL;
+static char *last = NULL;
+static char *vol = NULL;
+
+static ExData *ex_data = NULL;
+
+/* There are six fields currently in the ExData. Namely ex_name, low, high, avg,
+ * last, and vol.
+ */
+int num_fields = 6;
+int num_text_layers = 0;
+
+/* An array to hold the different values that will be displayed to the user.
+ */
+static char **fields = NULL;
+
+/* An array of TextLayers used to display information to the user.
+ */
+static TextLayer **text_layers = NULL;
+
+static const char *field_labels[] = {"\0",
+                                     "Low:\0",
+                                     "High:\0",
+                                     "Average:\0",
+                                     "Last:\0",
+                                     "Volume:\0"
+                                    };
+
+// TODO: Remove this old crap.
 static TextLayer *exchange_name_display;
 static TextLayer *low_label;
 static TextLayer *low_display;
@@ -27,6 +58,7 @@ static const char const *buy_text = "Buy:";
 static const char const *sell_text = "Sell:";
 static const char const *volume_text = "Volume:";
 
+/*
 static char low[PRICE_FIELD_LENGTH];
 static char high[PRICE_FIELD_LENGTH];
 static char last[PRICE_FIELD_LENGTH];
@@ -34,8 +66,11 @@ static char average[PRICE_FIELD_LENGTH];
 static char buy[PRICE_FIELD_LENGTH];
 static char sell[PRICE_FIELD_LENGTH];
 static char volume[VOLUME_FIELD_LENGTH];
+*/
 
+/*
 static ExchangeData *exchange_data;
+*/
 
 static void click_config_provider(void *context) {
 
@@ -72,6 +107,36 @@ static void init_text_layer_for_scroll(TextLayer *layer, const char *text, const
 }
 
 static void window_load(Window *window) {
+  GTextAlignment header_align = GTextAlignmentLeft;
+  GTextAlignment display_align = GTextAlignmentRight;
+
+  const char *header_font = FONT_KEY_GOTHIC_18_BOLD;
+  const char *display_font = FONT_KEY_GOTHIC_18;
+
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(window_layer);
+
+  int16_t header_width = bounds.size.w;
+  int16_t display_width = bounds.size.w;
+  int16_t header_height = 22;
+  int16_t display_height = 22;
+
+  scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
+  scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 154));
+  layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
+
+  text_layer[0] = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
+  text_layer_set_text_alignment(text_layer[0], GTextAlignmentCenter);
+  text_layer_set_font(text_layer[0], fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  text_layer_set_text(text_layer[0], fields[0]);
+  layer_add_child(window_layer, text_layer_get_layer(text_layer[0]));
+
+  for (int i = 1; i < (num_fields - 1); i++) {
+    text_layer[i] = text_layer_create((GRect) { .origin = { 0, header_height * (i - 1) }, .size = { header_width, header_height } });
+  }
+}
+
+static void OLD_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
     int half_screen = (bounds.size.w / 2);
@@ -117,6 +182,45 @@ static void window_load(Window *window) {
 }
 
 static void window_unload(Window *window) {
+
+  /* Destroy the field that contains the exchange name.
+   */
+  if (fields[0] != NULL) {
+    free(fields[0]);
+    fields[0] = NULL;
+  }
+
+  /* Destroy all of the format fields.
+   */
+  for (int i = 1; i < num_fields; i++) {
+    destroy_format(fields[i]);
+  }
+
+  /* Free the memory allocated for storing all of the format fields.
+   */
+  if (fields != NULL) {
+    free(fields);
+    fields = NULL;
+  }
+
+  /* Destroy the text layers.
+   */
+  for (int i = 0; i < num_text_fields; i++) {
+    text_layer_destroy(text_layers[i]);
+  }
+
+  /* Free the memory allocated for storing all of the text layers.
+   */
+  if (text_layers != NULL) {
+    free(text_layers);
+    text_layers = NULL;
+  }
+
+  scroll_layer_destroy(scroll_layer);
+}
+
+/*
+static void OLD_window_unload(Window *window) {
     text_layer_destroy(exchange_name_display);
     text_layer_destroy(low_label);
     text_layer_destroy(low_display);
@@ -134,24 +238,37 @@ static void window_unload(Window *window) {
     text_layer_destroy(volume_display);
     scroll_layer_destroy(scroll_layer);
 }
+*/
 
 static void window_appear(Window *window) {
 
-    text_layer_set_text(exchange_name_display, exchange_data->exchange_name);
+//  text_layer_set_text(exchange_name_display, ex_data->ex_name);
 
-    app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 56, "Low value is: %ld.", exchange_data->low);
+  /* With the exception of the name field each field has two text layers, one to
+   * dispaly what the value is and one to dispaly the actual value.
+   */
+  num_text_layers = 1 + ((num_fields - 1) * 2);
+  text_layers = (TextLayer **) malloc(sizeof(TextLayer *) * num_text_fields);
 
-    format_as_dollars(low, exchange_data->low);
-    format_as_dollars(high, exchange_data->high);
-    format_as_dollars(last, exchange_data->last);
-    format_as_dollars(average, exchange_data->average);
-    format_as_dollars(buy, exchange_data->buy);
-    format_as_dollars(sell, exchange_data->sell);
-    format_as_bitcoin(volume, exchange_data->volume);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 56, "Low value is: %ld.", ex_data->low);
+
+  fields = (char **) malloc(sizeof(char *) * num_fields);
+
+  fields[0] = (char *) malloc(sizeof(char) * (strlen(ex_data->ex_name) + 1));
+  strncpy(fields[0], ex_data->ex_name, (strlen(ex_data->ex_name) + 1));
+
+  fields[1] = create_format_dollars(ex_data->low);
+  fields[2] = create_format_dollars(ex_data->high);
+  fields[3] = create_format_dollars(ex_data->avg);
+  fields[4] = create_format_dollars(ex_data->last);
+  fields[5] = create_format_dollars(ex_data->vol);
 }
 
 static void window_disappear(Window *window) {
-
+  destroy_format(low);
+  destroy_format(high);
+  destroy_format(avg);
+  destroy_format(last);
 }
 
 void exchange_detail_init(void) {
@@ -169,9 +286,20 @@ void exchange_detail_deinit(void) {
     window_destroy(window);
 }
 
-void exchange_detail_show(ExchangeData *selected_exchange_data) {
+/* Displays the exchange detail screen.
+ *
+ * ExData *data - The exchange data to show details for.
+ */
+void exchange_detail_show(ExData *data) {
+  ex_data = data;
+
+  window_stack_push(window, true);
+}
+
+/*
+void OLD_exchange_detail_show(ExchangeData *selected_exchange_data) {
     exchange_data = selected_exchange_data;
 
     window_stack_push(window, true);
 }
-
+*/
