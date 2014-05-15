@@ -1,5 +1,49 @@
 #include "exchange.h"
 
+ExData * create_ex_data(void) {
+  ExData *data = (ExData *) malloc(sizeof(ExData));
+
+  data->ex_name = NULL;
+  data->low = 0;
+  data->high = 0;
+  data->avg = 0;
+  data->last = 0;
+  data->vol = 0;
+
+  return data;
+}
+
+void destroy_ex_data(ExData *data) {
+  if (data != NULL) {
+    if (data->ex_name != NULL) {
+      free(data->ex_name);
+      data->ex_name = NULL;
+    }
+
+    free(data);
+    data = NULL;
+  }
+}
+
+void set_ex_name(ExData * data, char *src) {
+  if (data->ex_name != NULL) {
+    free(data->ex_name);
+    data->ex_name = NULL;
+  }
+
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 35, "set_ex_name: Allocating %d bytes for ex_name.", (strlen(src) + 1));
+  data->ex_name = (char *) malloc(sizeof(char) * strlen(src) + 1);
+
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange.", 38, "set_ex_name: Copying %s into ex_name.", src);
+  strncpy(data->ex_name, src, strlen(src) + 1);
+
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 41, "set_ex_name: ex_name now contains %s.", data->ex_name);
+}
+
+
+/* TODO: Remove everything below this commend when exchange_details has been
+ *       reworked.
+ */
 void format_as_dollars(char *dest, int32_t value) {
     int32_t characteristic = 0;
     int32_t mantissa = 0;
@@ -24,7 +68,7 @@ void format_as_dollars(char *dest, int32_t value) {
 /*
 void format_as_bitcoin_with_precision(char *dest, int64_t value, uint8_t precision) {
     int64_t characteristic = 0;
-    int64_t mantissa = 0;    
+    int64_t mantissa = 0;
 
     // Bitcoin can only be divided down to eight decimal points. Therefore any
     // precision higher than eight is useless.
@@ -46,11 +90,10 @@ void format_as_bitcoin(char *dest, int64_t value) {
 
 void format_as_bitcoin(char *dest, int64_t value) {
     int64_t characteristic = 0;
-    int64_t mantissa = 0;    
+    int64_t mantissa = 0;
 
     characteristic = value / 100000000;
     mantissa = value - (characteristic * 100000000);
 
     snprintf(dest, VOLUME_FIELD_LENGTH, "%lld.%08lld", characteristic, mantissa);
 }
-

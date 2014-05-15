@@ -1,9 +1,32 @@
 #pragma once
 
+// I need the app_log function from pebble.h.
+#include <pebble.h>
 #include <stdint.h>
 #include <stdio.h>
 
-/* #define statements used throughout this file for convenience. 
+/* Struct that stores exchange data.
+ */
+typedef struct {
+  char *ex_name;
+  int32_t low;
+  int32_t high;
+  int32_t avg;
+  int32_t last;
+  int64_t vol;
+} ExData;
+
+ExData * create_ex_data(void);
+
+void destroy_ex_data(ExData *data);
+
+void set_ex_name(ExData *data, char *src);
+
+/* TODO: Remove everything below this commend when exchange_details has been
+ *       reworked.
+ */
+
+/* #define statements used throughout this file for convenience.
 */
 #define EXCHANGE_NAME_LENGTH (10) // Length, in bytes, an exchange's name can be.
 #define PRICE_FIELD_LENGTH (15) // Length, in bytes, a price field can be.
@@ -37,4 +60,3 @@ void format_as_dollars(char *dest, int32_t value);
 //void format_as_bitcoin_with_precision(char *dest, int64_t value, uint8_t precision);
 
 void format_as_bitcoin(char *dest, int64_t value);
-

@@ -34,17 +34,9 @@ enum {
 const char *stat_loading = "Loading...\0";
 const char *stat_error = "Error...\0";
 
-/* Struct that stores exchange data.
+/* Struct for storing the current status of an exchange. This will likely get
+ * more entries in the future, hence the struct.
  */
-typedef struct {
-  char *ex_name;
-  int32_t low;
-  int32_t high;
-  int32_t avg;
-  int32_t last;
-  int64_t vol;
-} ExData;
-
 typedef struct {
   char *stat;
 } ExStat;
@@ -62,6 +54,9 @@ static int32_t num_ex = 0;
  */
 static ExData *ex_data_list = NULL;
 
+/* An array that stores the status for each exchange. This array is destroyed
+ * when the user initializes a global configuration change.
+ */
 static ExStat *ex_stat_list = NULL;
 
 /* Frees all of the data allocated for the ex_data_list. First all of the
@@ -74,10 +69,14 @@ static void free_ex_data_list(void) {
     // Iterate through each ExData item and free its allocated variables and set
     // their pointers to NULL.
     for (int i = 0; i < num_ex; i++) {
+      destroy_ex_data(&ex_data_list[i]);
+/*
       if (ex_data_list[i].ex_name != NULL) {
         free(ex_data_list[i].ex_name);
         ex_data_list[i].ex_name = NULL;
+
       }
+*/
     }
 
     // Free the ex_data_list itself and set its pointer to NULL.
@@ -239,11 +238,14 @@ static ExData* update_global_config(int32_t new_num_ex) {
     // Zero out all of the data in the newly allocated array so we don't have
     // a bunch of random shit happen due to unknown memory contents.
     for (int i = 0; i < num_ex; i++) {
+      ex_data_list[i] = *create_ex_data();
+/*
       ex_data_list[i].ex_name = NULL;
       ex_data_list[i].low = 0;
       ex_data_list[i].high = 0;
       ex_data_list[i].avg = 0;
       ex_data_list[i].last = 0;
+*/
     }
   }
 
@@ -418,9 +420,9 @@ static void load_global_config(DictionaryIterator *config) {
   // Global configuration data has been loaded. Set the status for each exchange
   // to "Loading...".
   for (int i = 0; i < num_ex->value->int32; i++) {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 404, "Copying 'Loading...' into exchange %d.", i);
+//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 404, "Copying 'Loading...' into exchange %d.", i);
     set_stat_to_loading(i);
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_stat_list[i].stat);
+//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 411, "After strdyncpy ex_status now contains %p.", ex_stat_list[i].stat);
   }
 
   // When the global configuration is updated the exchange_menu is rebuilt. It's
@@ -446,12 +448,15 @@ static void load_ex_config(DictionaryIterator *config) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Received exchange index %ld.", index);
 
     if (ex_name) {
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 435, "Exchange name is '%s'. Copying it now.", ex_name->value->cstring);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 435, "Exchange name is '%s'. Copying it now.", ex_name->value->cstring);
+      set_ex_name(&ex_data_list[index], ex_name->value->cstring);
+/*
       ex_data_list[index].ex_name = strdyncpy(ex_data_list[index].ex_name, ex_name->value->cstring);
-      app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 438, "'%s' finshed copying.", ex_data_list[index].ex_name);
+*/
+//      app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 438, "'%s' finshed copying.", ex_data_list[index].ex_name);
     }
 
-    app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 442, "Fetching current prices for %s.", ex_data_list[index].ex_name);
+//    app_log(APP_LOG_LEVEL_DEBUG, "write_coin.c", 442, "Fetching current prices for %s.", ex_data_list[index].ex_name);
     // Now that the configuration has been loaded it's time to fetch the current
     // prices.
     fetch_ex_price(index);
@@ -507,28 +512,28 @@ static void load_ex_prices(DictionaryIterator *prices) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "Received price information for %s.", ex_data_list[index].ex_name);
 
     if (ex_low) {
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a low of %ld.", ex_data_list[index].ex_name, ex_low->value->int32);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a low of %ld.", ex_data_list[index].ex_name, ex_low->value->int32);
       ex_data_list[index].low = ex_low->value->int32;
     }
 
     if (ex_high) {
       ex_data_list[index].high = ex_high->value->int32;
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a high of %ld.", ex_data_list[index].ex_name, ex_high->value->int32);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a high of %ld.", ex_data_list[index].ex_name, ex_high->value->int32);
     }
 
     if (ex_avg) {
       ex_data_list[index].avg = ex_avg->value->int32;
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has an average of %ld.", ex_data_list[index].ex_name, ex_avg->value->int32);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has an average of %ld.", ex_data_list[index].ex_name, ex_avg->value->int32);
     }
 
     if (ex_last) {
       ex_data_list[index].last = ex_last->value->int32;
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a last of %ld.", ex_data_list[index].ex_name, ex_last->value->int32);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a last of %ld.", ex_data_list[index].ex_name, ex_last->value->int32);
     }
 
     if (ex_vol) {
       ex_data_list[index].vol = convert_bytes_to_int64(ex_vol);
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 491, "%s has a volume of %lld.", ex_data_list[index].ex_name, ex_data_list[index].vol);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 491, "%s has a volume of %lld.", ex_data_list[index].ex_name, ex_data_list[index].vol);
     }
 
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index].avg);
