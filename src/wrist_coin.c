@@ -52,7 +52,7 @@ static int32_t num_ex = 0;
  * directly to this data. When you need data form this array copy it to another
  * variable because at any point this whole thing could be destroyed.
  */
-static ExData *ex_data_list = NULL;
+static ExData **ex_data_list = NULL;
 
 /* An array that stores the status for each exchange. This array is destroyed
  * when the user initializes a global configuration change.
@@ -65,11 +65,12 @@ static ExStat *ex_stat_list = NULL;
  * be called from update_global_config and window_unload.
  */
 static void free_ex_data_list(void) {
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 68, "free_ex_data_list: Tearing down ex_data_list.");
   if (ex_data_list != NULL) {
     // Iterate through each ExData item and free its allocated variables and set
     // their pointers to NULL.
     for (int i = 0; i < num_ex; i++) {
-      destroy_ex_data(&ex_data_list[i]);
+      destroy_ex_data(ex_data_list[i]);
 /*
       if (ex_data_list[i].ex_name != NULL) {
         free(ex_data_list[i].ex_name);
@@ -79,6 +80,7 @@ static void free_ex_data_list(void) {
 */
     }
 
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 82, "free_ex_data_list: Freeing ex_data_list now.");
     // Free the ex_data_list itself and set its pointer to NULL.
     free(ex_data_list);
     ex_data_list = NULL;
@@ -228,7 +230,7 @@ static ExData* update_global_config(int32_t new_num_ex) {
 
   // Allocate enough memory to store the configuration of all user selected
   // exchanges.
-  ex_data_list = (ExData *) malloc(sizeof(ExData) * num_ex);
+  ex_data_list = (ExData **) malloc(sizeof(ExData *) * num_ex);
 
   if (ex_data_list == NULL) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 89, "Something went horribly wrong. ex_data_list is NULL.");
@@ -238,7 +240,7 @@ static ExData* update_global_config(int32_t new_num_ex) {
     // Zero out all of the data in the newly allocated array so we don't have
     // a bunch of random shit happen due to unknown memory contents.
     for (int i = 0; i < num_ex; i++) {
-      ex_data_list[i] = *create_ex_data();
+      ex_data_list[i] = create_ex_data();
 /*
       ex_data_list[i].ex_name = NULL;
       ex_data_list[i].low = 0;
@@ -263,7 +265,7 @@ static ExData* update_global_config(int32_t new_num_ex) {
     }
   }
 
-  return ex_data_list;
+  return *ex_data_list;
 }
 
 /* Returns the ExData record for the exchange at index.
@@ -273,7 +275,7 @@ static ExData* get_ex_data(int index) {
     return NULL;
   }
 
-  return &ex_data_list[index];
+  return ex_data_list[index];
 }
 
 /* Sets the status field for a selected exchange to "Loading...".
@@ -344,7 +346,7 @@ static void fetch_ex_price(int exchange) {
   Tuplet command = TupletInteger(WC_KEY_COMMAND, 1);
   Tuplet index = TupletInteger(WC_KEY_EX_INDEX, exchange);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 310, "fetch_ex_price: Fetching prices for %s. Sending index value %d.", ex_data_list[exchange].ex_name, exchange);
+  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 310, "fetch_ex_price: Fetching prices for %s. Sending index value %d.", ex_data_list[exchange]->ex_name, exchange);
 
   DictionaryIterator *iter;
   app_message_outbox_begin(&iter);
@@ -401,7 +403,7 @@ static uint16_t get_num_rows_callback(struct MenuLayer *menu_layer, uint16_t sec
  * exchange name and exchange status to the menu row.
  */
 static void draw_row_callback(GContext* ctx, Layer *cell_layer, MenuIndex *cell_index, void *data) {
-  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[cell_index->row].ex_name, ex_stat_list[cell_index->row].stat, NULL);
+  menu_cell_basic_draw(ctx, cell_layer, ex_data_list[cell_index->row]->ex_name, ex_stat_list[cell_index->row].stat, NULL);
 }
 
 /*
@@ -449,7 +451,7 @@ static void load_ex_config(DictionaryIterator *config) {
 
     if (ex_name) {
 //      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 435, "Exchange name is '%s'. Copying it now.", ex_name->value->cstring);
-      set_ex_name(&ex_data_list[index], ex_name->value->cstring);
+      set_ex_name(ex_data_list[index], ex_name->value->cstring);
 /*
       ex_data_list[index].ex_name = strdyncpy(ex_data_list[index].ex_name, ex_name->value->cstring);
 */
@@ -509,35 +511,35 @@ static void load_ex_prices(DictionaryIterator *prices) {
     Tuple *ex_vol = dict_find(prices, WC_KEY_EX_VOL);
     int index = ex_index->value->int32;
 
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "Received price information for %s.", ex_data_list[index].ex_name);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "Received price information for %s.", ex_data_list[index]->ex_name);
 
     if (ex_low) {
 //      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a low of %ld.", ex_data_list[index].ex_name, ex_low->value->int32);
-      ex_data_list[index].low = ex_low->value->int32;
+      ex_data_list[index]->low = ex_low->value->int32;
     }
 
     if (ex_high) {
-      ex_data_list[index].high = ex_high->value->int32;
+      ex_data_list[index]->high = ex_high->value->int32;
 //      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a high of %ld.", ex_data_list[index].ex_name, ex_high->value->int32);
     }
 
     if (ex_avg) {
-      ex_data_list[index].avg = ex_avg->value->int32;
+      ex_data_list[index]->avg = ex_avg->value->int32;
 //      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has an average of %ld.", ex_data_list[index].ex_name, ex_avg->value->int32);
     }
 
     if (ex_last) {
-      ex_data_list[index].last = ex_last->value->int32;
+      ex_data_list[index]->last = ex_last->value->int32;
 //      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a last of %ld.", ex_data_list[index].ex_name, ex_last->value->int32);
     }
 
     if (ex_vol) {
-      ex_data_list[index].vol = convert_bytes_to_int64(ex_vol);
+      ex_data_list[index]->vol = convert_bytes_to_int64(ex_vol);
 //      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 491, "%s has a volume of %lld.", ex_data_list[index].ex_name, ex_data_list[index].vol);
     }
 
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index].avg);
-    stat = format_dollars(stat, ex_data_list[index].avg);
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index]->avg);
+    stat = format_dollars(stat, ex_data_list[index]->avg);
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 591, "Loading formatted string '%s' into status field.", stat);
 //    ex_data_list[index].ex_status = strdyncpy(ex_data_list[index].ex_status, stat);
     ex_stat_list[index].stat = strdyncpy(ex_stat_list[index].stat, stat);

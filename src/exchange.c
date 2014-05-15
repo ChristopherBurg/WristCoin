@@ -14,14 +14,18 @@ ExData * create_ex_data(void) {
 }
 
 void destroy_ex_data(ExData *data) {
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 17, "destroy_ex_data: Received order to destroying ExData struct %p.", data);
   if (data != NULL) {
     if (data->ex_name != NULL) {
+      app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 20, "destroy_ex_data: Destroying ExData->ex_name %p.", data->ex_name);
       free(data->ex_name);
       data->ex_name = NULL;
     }
 
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 25, "destroy_ex_data: Destroying ExData struct %p now.", data);
     free(data);
     data = NULL;
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 28, "destroy_ex_data: ExData struct destroyed. Pointer is now %p.", data);
   }
 }
 
