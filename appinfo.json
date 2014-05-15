@@ -18,20 +18,7 @@
     "exHigh" : 103,
     "exAvg" : 104,
     "exLast" : 105,
-    "exchange" : 5001,
-    "error" : 5002,
-    "errorMessage" : 5003,
-    "resendFailed" : 5004,
-    "low" : 5100,
-    "high" : 5101,
-    "last" : 5102,
-    "average" : 5103,
-    "buy" : 5104,
-    "sell" : 5105,
-    "volume" : 5106,
-    "bitstamp" : 5200,
-    "mtgox" : 5201,
-    "btce" : 5202
+    "exVol" : 106
   },
   "resources": {
     "media": [

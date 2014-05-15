@@ -12,7 +12,6 @@ accompanying JavaScript loaded into the Pebble smartphone app.
 This list should mirror the list of appkeys found in the appinfo.json file.
 */
 enum {
-  //    WC_KEY_FETCH = 0,
   WC_KEY_COMMAND = 0,
   WC_KEY_CONFIG = 1,
   WC_KEY_NUM_EX = 2,
@@ -22,19 +21,7 @@ enum {
   WC_KEY_EX_HIGH = 103,
   WC_KEY_EX_AVG = 104,
   WC_KEY_EX_LAST = 105,
-  WC_KEY_EXCHANGE = 1,
-  WC_KEY_ERROR = 2,
-  WC_KEY_ERROR_MESSAGE = 3,
-  WC_KEY_LOW = 100,
-  WC_KEY_HIGH = 101,
-  WC_KEY_LAST = 102,
-  WC_KEY_AVERAGE = 103,
-  WC_KEY_BUY = 104,
-  WC_KEY_SELL = 105,
-  WC_KEY_VOLUME = 106,
-  WC_KEY_BITSTAMP = 200,
-  WC_KEY_MTGOX = 201,
-  WC_KEY_BTCE = 202,
+  WC_KEY_EX_VOL = 106,
 };
 
 /* This is a list of constants that don't appear in appinfo.json.
@@ -42,25 +29,7 @@ enum {
 enum {
   WC_KEY_GLOBAL_CONFIG = 0,
   WC_KEY_EX_CONFIG = 1,
-
-  // TODO: Remove keys.
-  WC_COMMAND_GET_EXCHANGES = 0,
-  WC_COMMAND_GET_PRICES = 1,
 };
-
-/* This typedef is here due to a consideration to create a status field to
-decide what the menu displays instead of using whatever value is in the
-ExchangeData.last field.
-*/
-// TODO: Remove this struct.
-typedef struct {
-  ExchangeData *exchange_data;
-  int32_t status;
-  int32_t error;
-} ExchangeDataList;
-
-// TODO: Remove this.
-static ExchangeData exchange_data_list[NUMBER_OF_EXCHANGES];
 
 const char *stat_loading = "Loading...\0";
 const char *stat_error = "Error...\0";
@@ -74,9 +43,8 @@ typedef struct {
   int32_t high;
   int32_t avg;
   int32_t last;
+  int64_t vol;
 } ExData;
-
-//static ExData ex_data_list[NUMBER_OF_EXCHANGES];
 
 /* The number of exchanges that the Pebble app has told this app the user has
  * selected. This number should only be altered by the update_global_config
@@ -137,14 +105,14 @@ static char * strdyncpy(char *dest, const char *source) {
       dest = NULL;
     }
 
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Copying '%s' into dest.", source);
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Reallocating memory for dest. Will allocate %d byets.", (strlen(source) + 1));
+//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Copying '%s' into dest.", source);
+//    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 132, "Reallocating memory for dest. Will allocate %d byets.", (strlen(source) + 1));
     dest = (char *) malloc(sizeof(char) * (strlen(source) + 1));
 
     if (dest != NULL) {
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 136, "Memory for dest allocated. Copying contents from source into dest.");
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 136, "Memory for dest allocated. Copying contents from source into dest.");
       strncpy(dest, source, strlen(source) + 1);
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 138, "dest now contains '%s'.", dest);
+//      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 138, "dest now contains '%s'.", dest);
     } else {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 374, "Something went horribly wrong. ex_data_list[i].ex_status memory wasn't allocated.");
     }
@@ -200,18 +168,18 @@ static char * format_dollars(char *dest, int32_t price) {
     }
   }
 
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 200, "%ld is %ld digits long. Allocating %ld bytes for dollar string.", price, digits, (digits + 4));
+//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 200, "%ld is %ld digits long. Allocating %ld bytes for dollar string.", price, digits, (digits + 4));
   dollars = (char *) malloc(digits + 4);
 
   characteristic = price / 100;
   mantissa = price - (characteristic * 100);
   snprintf(dollars, digits + 4, "$ %ld.%02ld", characteristic, mantissa);
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Formatted dollar string is '%s'.", dollars);
+//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 208, "Formatted dollar string is '%s'.", dollars);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Copying dollar string into dest.");
+//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 207, "Copying dollar string into dest.");
   dest = strdyncpy(dest, dollars);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 209, "Freeing temporary dollar string.");
+//  app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 209, "Freeing temporary dollar string.");
   free(dollars);
   dollars = NULL;
 
@@ -256,19 +224,6 @@ static ExData* update_global_config(int32_t new_num_ex) {
   }
 
   return ex_data_list;
-}
-
-/* Returns the ExchangeData for the exchange at index. For a good time use the
-   exchange related #defines at the beginning of this file when calling this
-   function.
-*/
-// TODO: Remove function.
-static ExchangeData* get_data_for_exchange(int index) {
-  if (index < 0 || index >= NUMBER_OF_EXCHANGES) {
-    return NULL;
-  }
-
-  return &exchange_data_list[index];
 }
 
 /* Returns the ExData record for the exchange at index.
@@ -364,11 +319,11 @@ static void fetch_ex_price(int exchange) {
 }
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
-  ExchangeData *selected;
+  ExData *selected;
   //    const int32_t last = 0;
   const int index = cell_index->row;
 
-  if ((selected = get_data_for_exchange(index)) == NULL) {
+  if ((selected = get_ex_data(index)) == NULL) {
     return;
   }
 
@@ -376,7 +331,7 @@ static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *
   there's no reason to display the extended data window.
   */
   if (selected->last >= 0) {
-    exchange_detail_show(selected);
+//    exchange_detail_show(selected);
   }
 }
 
@@ -506,6 +461,7 @@ static void load_ex_prices(DictionaryIterator *prices) {
     Tuple *ex_high = dict_find(prices, WC_KEY_EX_HIGH);
     Tuple *ex_avg = dict_find(prices, WC_KEY_EX_AVG);
     Tuple *ex_last = dict_find(prices, WC_KEY_EX_LAST);
+    Tuple *ex_vol = dict_find(prices, WC_KEY_EX_VOL);
     int index = ex_index->value->int32;
 
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "Received price information for %s.", ex_data_list[index].ex_name);
@@ -528,6 +484,11 @@ static void load_ex_prices(DictionaryIterator *prices) {
     if (ex_last) {
       ex_data_list[index].last = ex_last->value->int32;
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 482, "%s has a last of %ld.", ex_data_list[index].ex_name, ex_last->value->int32);
+    }
+
+    if (ex_vol) {
+      ex_data_list[index].vol = convert_bytes_to_int64(ex_vol);
+      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 491, "%s has a volume of %lld.", ex_data_list[index].ex_name, ex_data_list[index].vol);
     }
 
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 586, "Loading %ld into temporary status variable.", ex_data_list[index].avg);
@@ -570,76 +531,6 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 250, "Command was an exchange price list.");
       load_ex_prices(received);
     }
-  }
-
-  menu_layer_reload_data(exchange_menu);
-}
-
-// TODO: Remove this function.
-static void OLD_in_received_handler(DictionaryIterator *received, void *context) {
-  Tuple *exchange = dict_find(received, WC_KEY_EXCHANGE);
-  Tuple *error = dict_find(received, WC_KEY_ERROR);
-  Tuple *low = dict_find(received, WC_KEY_LOW);
-  Tuple *high = dict_find(received, WC_KEY_HIGH);
-  Tuple *last = dict_find(received, WC_KEY_LAST);
-  Tuple *average = dict_find(received, WC_KEY_AVERAGE);
-  Tuple *buy = dict_find(received, WC_KEY_BUY);
-  Tuple *sell = dict_find(received, WC_KEY_SELL);
-  Tuple *volume = dict_find(received, WC_KEY_VOLUME);
-  int index = 0;
-
-  if (exchange) {
-    index = exchange->value->int32;
-
-    if (error) {
-      app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 198, "Received an error from the phone.");
-//      set_status_to_error(index);
-    } else {
-      if (low) {
-        exchange_data_list[index].low = low->value->int32;
-      }
-
-      if (high) {
-        exchange_data_list[index].high = high->value->int32;
-      }
-
-      if (last) {
-        exchange_data_list[index].last = last->value->int32;
-      }
-
-      if (average) {
-        exchange_data_list[index].average = average->value->int32;
-      }
-
-      if (buy) {
-        exchange_data_list[index].buy = buy->value->int32;
-      }
-
-      if (sell) {
-        exchange_data_list[index].sell = sell->value->int32;
-      }
-
-      if (volume) {
-        // Volume can often exceed the maximum size of a 32-bit
-        // integer. Since a 32-bit integer is the largest the PebbleKit
-        // JavaScript can send the volume value must be converted into
-        // a byte array. To undo this the byte array must be "unpacked"
-        // which I'm doing here by shifting each byte into the proper
-        // position in an int64_t variable.
-        int64_t temp = 0;
-        for (unsigned int i = 0; i < volume->length; ++i) {
-          temp = volume->value->data[i];
-          temp <<= (8 * (volume->length - 1 - i));
-          exchange_data_list[index].volume |= temp;
-        }
-
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 247, "Volume for %d is %lld.", index, exchange_data_list[index].volume);
-      } else {
-        app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 238, "Didn't receive a volume for exchange %d.", index);
-      }
-    }
-  } else {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 193, "Didn't receive exchange.");
   }
 
   menu_layer_reload_data(exchange_menu);

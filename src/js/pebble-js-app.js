@@ -257,7 +257,8 @@ function fetchBitstampPrice() {
                              "exLow" : low,
                              "exHigh" : high,
                              "exAvg" : average,
-                             "exLast" : last
+                             "exLast" : last,
+                             "exVol" : volume_bytes
                             });
 
       } else {
@@ -330,7 +331,8 @@ function fetchBtcePrice() {
                            "exLow" : low,
                            "exHigh" : high,
                            "exAvg" : average,
-                           "exLast" : last
+                           "exLast" : last,
+                           "exVol" : volume_bytes
                           });
 
       } else {
@@ -403,7 +405,8 @@ function fetchBitfinexPrice() {
                            "exLow" : low,
                            "exHigh" : high,
                            "exAvg" : average,
-                           "exLast" : last
+                           "exLast" : last,
+                           "exVol" : volume_bytes
                           });
 
       } else {
