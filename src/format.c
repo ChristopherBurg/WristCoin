@@ -64,6 +64,35 @@ char * create_format_dollars(int64_t price) {
   return dollars;
 }
 
+char * create_format_volume(int64_t vol) {
+  char *dollars = NULL;
+  int64_t characteristic = 0;
+  int64_t mantissa = 0;
+  int digits = 0;
+
+  /* Bitcoin values can be divide into either decimal places. That being the
+   * case the shortest number of digits should be 1 to precent the decimal
+   * place and either to succeed it.
+   */
+  if (vol < (10 ^ 9)) {
+    digits = 9;
+  } else {
+    digits = get_digits(vol);
+  }
+
+  /* We need two additional characters for the decimal point and null
+   * terminator.
+   */
+  dollars = (char *) malloc(sizeof(char) * (digits + 2));
+
+  characteristic = vol / 100000000;
+  mantissa = vol - (characteristic * 100000000);
+
+  snprintf(dollars, digits + 2, "%lld.%08lld", characteristic, mantissa);
+
+  return dollars;
+}
+
 /* Takes a formatted string and destroys it, freeing its memory. This function
  * isn't format specific, it could destroy allocated chunk of memory, but having
  * this function satisfies my OCD tendencies.

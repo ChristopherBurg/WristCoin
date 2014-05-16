@@ -283,7 +283,6 @@ static void fetch_ex_price(int exchange) {
 
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   ExData *selected;
-  //    const int32_t last = 0;
   const int index = cell_index->row;
 
   if ((selected = get_ex_data(index)) != NULL) {

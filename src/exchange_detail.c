@@ -200,9 +200,7 @@ static void window_load(Window *window) {
   fields[2] = create_format_dollars(ex_data->high);
   fields[3] = create_format_dollars(ex_data->avg);
   fields[4] = create_format_dollars(ex_data->last);
-  // I haven't created the create_format_volume yet so I'm just setting the
-  // value to low for the time being.
-  fields[5] = create_format_dollars(ex_data->low);
+  fields[5] = create_format_volume(ex_data->vol);
 }
 
 static void window_disappear(Window *window) {
