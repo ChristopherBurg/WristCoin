@@ -3,16 +3,11 @@
 static Window *window;
 static ScrollLayer *scroll_layer;
 
-static char *low = NULL;
-static char *high = NULL;
-static char *avg = NULL;
-static char *last = NULL;
-static char *vol = NULL;
-
 static ExData *ex_data = NULL;
 
 /* There are six fields currently in the ExData. Namely ex_name, low, high, avg,
- * last, and vol.
+ * last, and vol. At a future time I will try to create a method of dynamically
+ * determining the number of fields but this will have to suffice for now.
  */
 int num_fields = 6;
 int num_text_layers = 0;
@@ -25,6 +20,9 @@ static char **fields = NULL;
  */
 static TextLayer **text_layers = NULL;
 
+/* An array of labels used to denote what information is being dispaleyd to the
+ * user.
+ */
 static const char *field_labels[] = {"Low:\0",
                                      "High:\0",
                                      "Average:\0",
@@ -32,83 +30,20 @@ static const char *field_labels[] = {"Low:\0",
                                      "Volume:\0"
                                     };
 
-// TODO: Remove this old crap.
-/*
-static TextLayer *exchange_name_display;
-static TextLayer *low_label;
-static TextLayer *low_display;
-static TextLayer *high_label;
-static TextLayer *high_display;
-static TextLayer *last_label;
-static TextLayer *last_display;
-static TextLayer *average_label;
-static TextLayer *average_display;
-static TextLayer *buy_label;
-static TextLayer *buy_display;
-static TextLayer *sell_label;
-static TextLayer *sell_display;
-static TextLayer *volume_label;
-static TextLayer *volume_display;
-
-static const char const *low_text = "Low:";
-static const char const *high_text = "High:";
-static const char const *last_text = "Last:";
-static const char const *average_text = "Average:";
-static const char const *buy_text = "Buy:";
-static const char const *sell_text = "Sell:";
-static const char const *volume_text = "Volume:";
-*/
-
-/*
-static char low[PRICE_FIELD_LENGTH];
-static char high[PRICE_FIELD_LENGTH];
-static char last[PRICE_FIELD_LENGTH];
-static char average[PRICE_FIELD_LENGTH];
-static char buy[PRICE_FIELD_LENGTH];
-static char sell[PRICE_FIELD_LENGTH];
-static char volume[VOLUME_FIELD_LENGTH];
-*/
-
-/*
-static ExchangeData *exchange_data;
-*/
-
 static void click_config_provider(void *context) {
 
 }
 
-/* Initializes a text layer, sets values for that text layer, and adds it as a
-   child to the main scroll layer.
-
-   layer - The text layer to initialize and add to the scroll layer.
-
-   text - The text for the label to display.
-
-   font - The font key for the font to use.
-
-   alignment - How to align the text in the text layer.
-
-   x - The x coordinate to draw the layer at.
-
-   y - The y coordinate to draw the layer at.
-
-   width - How wide the text layer should be.
-
-   height - How tall the text layer should be.
+/* This function is charged with created all of the user interface components
+ * setting them up to properly dispaly information to the user.
  */
-static void init_text_layer_for_scroll(TextLayer *layer, const char *text, const char *font, GTextAlignment alignment, int x, int y, int16_t width, int16_t height) {
-    Layer *window_layer = window_get_root_layer(window);
-    GRect bounds = layer_get_bounds(window_layer);
-
-    layer = text_layer_create((GRect) { .origin = { x, y }, .size = { width, height } });
-    text_layer_set_font(layer, fonts_get_system_font(font));
-    text_layer_set_text_alignment(layer, alignment);
-    text_layer_set_text(layer, text);
-    scroll_layer_add_child(scroll_layer, text_layer_get_layer(layer));
-}
-
 static void window_appear(Window *window) {
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 112, "window_appear: Entered window_appear.");
+  /* To ease interface changes the values for headers, the text layers that show
+   * labels, and dispalys, the text layers that show prices, are setup here. If
+   * the interface needs to be changes these variables should be the only things
+   * that need to be jiggered with.
+   */
   GTextAlignment header_align = GTextAlignmentCenter;
   GTextAlignment display_align = GTextAlignmentCenter;
 
@@ -128,6 +63,10 @@ static void window_appear(Window *window) {
   layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
 
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 131, "window_appear: Creating text layer to dispaly exchange name.");
+  /* The top of the screen shows the name of the exchange that the pricing data
+   * applies to. This text layer is outside of the scroll layer so that it will
+   * continue to show as the user scrolls through the pricing data.
+   */
   text_layers[0] = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
   text_layer_set_text_alignment(text_layers[0], GTextAlignmentCenter);
   text_layer_set_font(text_layers[0], fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
@@ -135,7 +74,10 @@ static void window_appear(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(text_layers[0]));
 
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 138, "window_appear: Creating text layers to display exchange values.");
-  /* Start at 1 since the first TextLayer has already been created.
+  /* This loop creates all of the text layers that are used on the screen. As
+   * the first text layer, the one showing the exchange name, has already been
+   * created we start with i being set to 1. Odd numbered text layers are labels
+   * whereas even numbered dispalys are price information.
    */
   int i = 1;
 
@@ -196,6 +138,8 @@ static void window_appear(Window *window) {
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 188, "window_appear: Completed window_appear.");
 }
 
+/* Frees up any memory that was allocated when this screen was first displayed.
+ */
 static void window_unload(Window *window) {
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 233, "window_unload: Entered window_unload.");
 
@@ -243,33 +187,26 @@ static void window_load(Window *window) {
    * dispaly what the value is and one to dispaly the actual value.
    */
   num_text_layers = 1 + ((num_fields - 1) * 2);
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 299, "window_load: Allocating memory for %d TextLayers.", num_text_layers);
+//  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 299, "window_load: Allocating memory for %d TextLayers.", num_text_layers);
   text_layers = (TextLayer **) malloc(sizeof(TextLayer *) * num_text_layers);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 304, "window_load: Allocating memory for %d fields.", num_fields);
+//  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 304, "window_load: Allocating memory for %d fields.", num_fields);
   fields = (char **) malloc(sizeof(char *) * num_fields);
 
   fields[0] = (char *) malloc(sizeof(char) * (strlen(ex_data->ex_name) + 1));
   strncpy(fields[0], ex_data->ex_name, (strlen(ex_data->ex_name) + 1));
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange name (fields 0) is '%s'.", fields[0]);
 
   fields[1] = create_format_dollars(ex_data->low);
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange low (fields 1) is '%s'.", fields[1]);
   fields[2] = create_format_dollars(ex_data->high);
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange high (fields 2) is '%s'.", fields[2]);
   fields[3] = create_format_dollars(ex_data->avg);
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange avg (fields 3) is '%s'.", fields[3]);
   fields[4] = create_format_dollars(ex_data->last);
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange last (fields 4) is '%s'.", fields[4]);
+  // I haven't created the create_format_volume yet so I'm just setting the
+  // value to low for the time being.
   fields[5] = create_format_dollars(ex_data->low);
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange vol (currently set to low) (fields 5) is '%s'.", fields[5]);
 }
 
 static void window_disappear(Window *window) {
-  destroy_format(low);
-  destroy_format(high);
-  destroy_format(avg);
-  destroy_format(last);
+
 }
 
 void exchange_detail_init(void) {
@@ -297,11 +234,3 @@ void exchange_detail_show(ExData *data) {
 
   window_stack_push(window, true);
 }
-
-/*
-void OLD_exchange_detail_show(ExchangeData *selected_exchange_data) {
-    exchange_data = selected_exchange_data;
-
-    window_stack_push(window, true);
-}
-*/
