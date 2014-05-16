@@ -25,8 +25,7 @@ static char **fields = NULL;
  */
 static TextLayer **text_layers = NULL;
 
-static const char *field_labels[] = {"\0",
-                                     "Low:\0",
+static const char *field_labels[] = {"Low:\0",
                                      "High:\0",
                                      "Average:\0",
                                      "Last:\0",
@@ -34,6 +33,7 @@ static const char *field_labels[] = {"\0",
                                     };
 
 // TODO: Remove this old crap.
+/*
 static TextLayer *exchange_name_display;
 static TextLayer *low_label;
 static TextLayer *low_display;
@@ -57,6 +57,7 @@ static const char const *average_text = "Average:";
 static const char const *buy_text = "Buy:";
 static const char const *sell_text = "Sell:";
 static const char const *volume_text = "Volume:";
+*/
 
 /*
 static char low[PRICE_FIELD_LENGTH];
@@ -106,9 +107,10 @@ static void init_text_layer_for_scroll(TextLayer *layer, const char *text, const
     scroll_layer_add_child(scroll_layer, text_layer_get_layer(layer));
 }
 
-static void window_load(Window *window) {
-  GTextAlignment header_align = GTextAlignmentLeft;
-  GTextAlignment display_align = GTextAlignmentRight;
+static void window_appear(Window *window) {
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 112, "window_appear: Entered window_appear.");
+  GTextAlignment header_align = GTextAlignmentCenter;
+  GTextAlignment display_align = GTextAlignmentCenter;
 
   const char *header_font = FONT_KEY_GOTHIC_18_BOLD;
   const char *display_font = FONT_KEY_GOTHIC_18;
@@ -122,66 +124,75 @@ static void window_load(Window *window) {
   int16_t display_height = 22;
 
   scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
-  scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 154));
+  scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, (num_text_layers * 22)));
   layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
 
-  text_layer[0] = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
-  text_layer_set_text_alignment(text_layer[0], GTextAlignmentCenter);
-  text_layer_set_font(text_layer[0], fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
-  text_layer_set_text(text_layer[0], fields[0]);
-  layer_add_child(window_layer, text_layer_get_layer(text_layer[0]));
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 131, "window_appear: Creating text layer to dispaly exchange name.");
+  text_layers[0] = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
+  text_layer_set_text_alignment(text_layers[0], GTextAlignmentCenter);
+  text_layer_set_font(text_layers[0], fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  text_layer_set_text(text_layers[0], fields[0]);
+  layer_add_child(window_layer, text_layer_get_layer(text_layers[0]));
 
-  for (int i = 1; i < (num_fields - 1); i++) {
-    text_layer[i] = text_layer_create((GRect) { .origin = { 0, header_height * (i - 1) }, .size = { header_width, header_height } });
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 138, "window_appear: Creating text layers to display exchange values.");
+  /* Start at 1 since the first TextLayer has already been created.
+   */
+  int i = 1;
+
+  while (i < (num_text_layers - 1)) {
+    int16_t field_width = 0;
+    int16_t field_height = 0;
+
+    GTextAlignment field_align = 0;
+
+    const char *font = NULL;
+
+    /* Odd numbered fields will be headers and even number fields will be
+     * displays.
+     */
+    if (i % 2 == 0) {
+      font = display_font;
+      field_width = display_width;
+      field_height = display_height;
+      field_align = display_align;
+    } else {
+      font = header_font;
+      field_width = header_width;
+      field_height = header_height;
+      field_align = header_align;
+    }
+
+    text_layers[i] = text_layer_create((GRect) { .origin = { 0, header_height * (i - 1) }, .size = { field_width, field_height } });
+    text_layer_set_text_alignment(text_layers[i], field_align);
+    text_layer_set_font(text_layers[i], fonts_get_system_font(font));
+
+    scroll_layer_add_child(scroll_layer, text_layer_get_layer(text_layers[i]));
+
+    i++;
   }
-}
 
-static void OLD_window_load(Window *window) {
-    Layer *window_layer = window_get_root_layer(window);
-    GRect bounds = layer_get_bounds(window_layer);
-    int half_screen = (bounds.size.w / 2);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 175, "window_appear: Adding text to text layers.");
+  i = 1;
+  int layer = 1;
+  while (i < (num_fields - 1)) {
+    app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 179, "window_appear: Adding header text for field %d. Text is '%s'.", i, field_labels[i - 1]);
+    text_layer_set_text(text_layers[layer], field_labels[i - 1]);
+    layer++;
 
-    scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
-    scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, 154));
-    layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
+    app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 183, "window_appear: Finished adding text for header. Adding text for display.");
+    app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 183, "window_appear: Adding display text for field %d. Text is '%s'.", i, fields[i]);
+    text_layer_set_text(text_layers[layer], fields[i]);
+    layer++;
 
-    exchange_name_display = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 32 } });
-    text_layer_set_text_alignment(exchange_name_display, GTextAlignmentCenter);
-    text_layer_set_font(exchange_name_display, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
-    layer_add_child(window_layer, text_layer_get_layer(exchange_name_display));
+    i++;
+  }
 
-    // Label and text for the low value.
-    init_text_layer_for_scroll(low_label, low_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 0, half_screen, 22);
-    init_text_layer_for_scroll(low_display, low, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 0, half_screen, 22);
-
-    // Label and text for the high value.
-    init_text_layer_for_scroll(high_label, high_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 22, half_screen, 22);
-    init_text_layer_for_scroll(high_display, high, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 22, half_screen, 22);
-
-    // Label and text for the last value.
-    init_text_layer_for_scroll(last_label, last_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 44, half_screen, 22);
-    init_text_layer_for_scroll(last_display, last, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 44, half_screen, 22);
-
-    // Label and text for the average value.
-    init_text_layer_for_scroll(average_label, average_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 66, half_screen, 22);
-    init_text_layer_for_scroll(average_display, average, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 66, half_screen, 22);
-
-    // Label and text for the buy value.
-    init_text_layer_for_scroll(buy_label, buy_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 88, half_screen, 22);
-    init_text_layer_for_scroll(buy_display, buy, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 88, half_screen, 22);
-
-    // Label and text for the sell value.
-    init_text_layer_for_scroll(sell_label, sell_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 110, half_screen, 22);
-    init_text_layer_for_scroll(sell_display, sell, FONT_KEY_GOTHIC_18, GTextAlignmentRight, half_screen, 110, half_screen, 22);
-
-    // Label and text for the volume.
-    init_text_layer_for_scroll(volume_label, volume_text, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentLeft, 0, 132, 55, 22);
-    init_text_layer_for_scroll(volume_display, volume, FONT_KEY_GOTHIC_18, GTextAlignmentRight, 55, 132, bounds.size.w - 55, 22);
-
-    scroll_layer_set_click_config_onto_window(scroll_layer, window);
+  scroll_layer_set_click_config_onto_window(scroll_layer, window);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 188, "window_appear: Completed window_appear.");
 }
 
 static void window_unload(Window *window) {
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 233, "window_unload: Entered window_unload.");
 
   /* Destroy the field that contains the exchange name.
    */
@@ -205,7 +216,7 @@ static void window_unload(Window *window) {
 
   /* Destroy the text layers.
    */
-  for (int i = 0; i < num_text_fields; i++) {
+  for (int i = 0; i < num_text_layers; i++) {
     text_layer_destroy(text_layers[i]);
   }
 
@@ -219,49 +230,34 @@ static void window_unload(Window *window) {
   scroll_layer_destroy(scroll_layer);
 }
 
-/*
-static void OLD_window_unload(Window *window) {
-    text_layer_destroy(exchange_name_display);
-    text_layer_destroy(low_label);
-    text_layer_destroy(low_display);
-    text_layer_destroy(high_label);
-    text_layer_destroy(high_display);
-    text_layer_destroy(last_label);
-    text_layer_destroy(last_display);
-    text_layer_destroy(average_label);
-    text_layer_destroy(average_display);
-    text_layer_destroy(buy_label);
-    text_layer_destroy(buy_display);
-    text_layer_destroy(sell_label);
-    text_layer_destroy(sell_display);
-    text_layer_destroy(volume_label);
-    text_layer_destroy(volume_display);
-    scroll_layer_destroy(scroll_layer);
-}
-*/
-
-static void window_appear(Window *window) {
-
+static void window_load(Window *window) {
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 293, "window_load: Entered window_appear.");
 //  text_layer_set_text(exchange_name_display, ex_data->ex_name);
 
   /* With the exception of the name field each field has two text layers, one to
    * dispaly what the value is and one to dispaly the actual value.
    */
   num_text_layers = 1 + ((num_fields - 1) * 2);
-  text_layers = (TextLayer **) malloc(sizeof(TextLayer *) * num_text_fields);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 299, "window_load: Allocating memory for %d TextLayers.", num_text_layers);
+  text_layers = (TextLayer **) malloc(sizeof(TextLayer *) * num_text_layers);
 
-  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 56, "Low value is: %ld.", ex_data->low);
-
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 304, "window_load: Allocating memory for %d fields.", num_fields);
   fields = (char **) malloc(sizeof(char *) * num_fields);
 
   fields[0] = (char *) malloc(sizeof(char) * (strlen(ex_data->ex_name) + 1));
   strncpy(fields[0], ex_data->ex_name, (strlen(ex_data->ex_name) + 1));
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange name (fields 0) is '%s'.", fields[0]);
 
   fields[1] = create_format_dollars(ex_data->low);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange low (fields 1) is '%s'.", fields[1]);
   fields[2] = create_format_dollars(ex_data->high);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange high (fields 2) is '%s'.", fields[2]);
   fields[3] = create_format_dollars(ex_data->avg);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange avg (fields 3) is '%s'.", fields[3]);
   fields[4] = create_format_dollars(ex_data->last);
-  fields[5] = create_format_dollars(ex_data->vol);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange last (fields 4) is '%s'.", fields[4]);
+  fields[5] = create_format_dollars(ex_data->low);
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 248, "window_load: Exchange vol (currently set to low) (fields 5) is '%s'.", fields[5]);
 }
 
 static void window_disappear(Window *window) {
@@ -291,6 +287,7 @@ void exchange_detail_deinit(void) {
  * ExData *data - The exchange data to show details for.
  */
 void exchange_detail_show(ExData *data) {
+  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 342, "exchange_detail_show: Entered exchange detail.");
   ex_data = data;
 
   window_stack_push(window, true);

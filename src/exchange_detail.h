@@ -8,4 +8,4 @@ void exchange_detail_init(void);
 
 void exchange_detail_deinit(void);
 
-void exchange_detail_show(ExchangeData *select_exchange_data);
+void exchange_detail_show(ExData *data);

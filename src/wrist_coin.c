@@ -286,16 +286,16 @@ static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *
   //    const int32_t last = 0;
   const int index = cell_index->row;
 
-  if ((selected = get_ex_data(index)) == NULL) {
-    return;
+  if ((selected = get_ex_data(index)) != NULL) {
+    exchange_detail_show(selected);
   }
 
   /* If the status is showing "Loading...", "Error...", or any other status
   there's no reason to display the extended data window.
   */
-  if (selected->last >= 0) {
-//    exchange_detail_show(selected);
-  }
+//  if (selected->last >= 0) {
+//
+//  }
 }
 
 /* Sets the status for each exchange display to "Loading..." and asks the
