@@ -124,7 +124,7 @@ static void window_appear(Window *window) {
   int16_t display_height = 22;
 
   scroll_layer = scroll_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, bounds.size.h - 32 } });
-  scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, (num_text_layers * 22)));
+  scroll_layer_set_content_size(scroll_layer, GSize(bounds.size.w, ((num_text_layers - 1) * 22)));
   layer_add_child(window_layer, scroll_layer_get_layer(scroll_layer));
 
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 131, "window_appear: Creating text layer to dispaly exchange name.");
@@ -139,7 +139,7 @@ static void window_appear(Window *window) {
    */
   int i = 1;
 
-  while (i < (num_text_layers - 1)) {
+  while (i < num_text_layers) {
     int16_t field_width = 0;
     int16_t field_height = 0;
 
@@ -172,14 +172,19 @@ static void window_appear(Window *window) {
   }
 
   app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 175, "window_appear: Adding text to text layers.");
+
+  /* Now we need to add the correct text to each text layer. This is done by
+   * incrementing through each field. First a text layer has the field's label
+   * set as the text. Then the next text layer has the formatted text set as its
+   * label.
+   */
   i = 1;
   int layer = 1;
-  while (i < (num_fields - 1)) {
+  while (i < num_fields) {
     app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 179, "window_appear: Adding header text for field %d. Text is '%s'.", i, field_labels[i - 1]);
     text_layer_set_text(text_layers[layer], field_labels[i - 1]);
     layer++;
 
-    app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 183, "window_appear: Finished adding text for header. Adding text for display.");
     app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 183, "window_appear: Adding display text for field %d. Text is '%s'.", i, fields[i]);
     text_layer_set_text(text_layers[layer], fields[i]);
     layer++;
