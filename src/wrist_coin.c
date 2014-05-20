@@ -112,6 +112,8 @@ void set_ex_stat(int index, const char *src) {
   strncpy(ex_stat_list[index], src, strlen(src) + 1);
 
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 41, "set_ex_name: ex_name now contains %s.", data->ex_name);
+
+  menu_layer_reload_data(exchange_menu);
 }
 
 /* Some price values, namely 24-hour volumes, can exceed the maximum size of a
@@ -295,8 +297,8 @@ static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *
 JavaScript code to fetch prices from the exchanges again.
 */
 static void select_long_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
-//  set_status_to_loading();
-//  fetch_message();
+  set_stat_to_loading(cell_index->row);
+  fetch_ex_price(cell_index->row);
 }
 
 static int16_t get_cell_height_callback(struct MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {

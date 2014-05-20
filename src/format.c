@@ -54,8 +54,6 @@ char * create_format_dollars(int64_t price) {
   /* We need four additional characters for the '$ ', decimal point, and null
    * terminator.
    */
-// TODO: Remove malloc.
-//  dollars = (char *) malloc(sizeof(char) * (digits + 4));
   dollars = (char *) calloc(digits + 4, sizeof(char));
 
   characteristic = price / 100;
@@ -85,8 +83,6 @@ char * create_format_volume(int64_t vol) {
   /* We need two additional characters for the decimal point and null
    * terminator.
    */
-// TODO: Remove malloc.
-//  dollars = (char *) malloc(sizeof(char) * (digits + 2));
   dollars = (char *) calloc(digits + 1, sizeof(char));
 
   characteristic = vol / 100000000;
