@@ -1,17 +1,10 @@
 #include "exchange.h"
 
-/* Allocates memory for an ExData struct, initilazes all of the values to 0, and
+/* Allocates memory for an ExData struct, zeros out the allocated chunk, and
  * returns a pointer to the allocated memory.
  */
 ExData * create_ex_data(void) {
-  ExData *data = (ExData *) malloc(sizeof(ExData));
-
-  data->ex_name = NULL;
-  data->low = 0;
-  data->high = 0;
-  data->avg = 0;
-  data->last = 0;
-  data->vol = 0;
+  ExData *data = (ExData *) calloc(1, sizeof(ExData));
 
   return data;
 }
@@ -54,7 +47,7 @@ void set_ex_name(ExData *data, char *src) {
   }
 
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 35, "set_ex_name: Allocating %d bytes for ex_name.", (strlen(src) + 1));
-  data->ex_name = (char *) malloc(sizeof(char) * strlen(src) + 1);
+  data->ex_name = (char *) calloc(strlen(src) + 1, sizeof(char));
 
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange.", 38, "set_ex_name: Copying %s into ex_name.", src);
   strncpy(data->ex_name, src, strlen(src) + 1);

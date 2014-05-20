@@ -106,7 +106,7 @@ void set_ex_stat(int index, const char *src) {
   }
 
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange.c", 35, "set_ex_name: Allocating %d bytes for ex_name.", (strlen(src) + 1));
-  ex_stat_list[index] = (char *) malloc(sizeof(char) * strlen(src) + 1);
+  ex_stat_list[index] = (char *) calloc(strlen(src) + 1, sizeof(char));
 
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange.", 38, "set_ex_name: Copying %s into ex_name.", src);
   strncpy(ex_stat_list[index], src, strlen(src) + 1);
@@ -159,7 +159,7 @@ static ExData* update_global_config(int32_t new_num_ex) {
 
   // Allocate enough memory to store the configuration of all user selected
   // exchanges.
-  ex_data_list = (ExData **) malloc(sizeof(ExData *) * num_ex);
+  ex_data_list = (ExData **) calloc(num_ex, sizeof(ExData *));
 
   if (ex_data_list == NULL) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 89, "Something went horribly wrong. ex_data_list is NULL.");
@@ -174,16 +174,10 @@ static ExData* update_global_config(int32_t new_num_ex) {
 
   // We also need to allocate enough memory to store the status of each of the
   // exchanges.
-  ex_stat_list = (char **) malloc(sizeof(char *) * num_ex);
+  ex_stat_list = (char **) calloc(num_ex, sizeof(char *));
 
   if (ex_stat_list == NULL) {
     app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 258, "Something went horribly wrong. ex_stat_list is NULL.");
-  } else {
-    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 260, "ex_stat_list allocated. Setting each status to NULL.");
-
-    for (int i = 0; i < num_ex; i++) {
-      ex_stat_list[i] = NULL;
-    }
   }
 
   return *ex_data_list;

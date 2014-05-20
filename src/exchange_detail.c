@@ -188,12 +188,12 @@ static void window_load(Window *window) {
    */
   num_text_layers = 1 + ((num_fields - 1) * 2);
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 299, "window_load: Allocating memory for %d TextLayers.", num_text_layers);
-  text_layers = (TextLayer **) malloc(sizeof(TextLayer *) * num_text_layers);
+  text_layers = (TextLayer **) calloc(num_text_layers, sizeof(TextLayer *));
 
 //  app_log(APP_LOG_LEVEL_DEBUG, "exchange_detail.c", 304, "window_load: Allocating memory for %d fields.", num_fields);
-  fields = (char **) malloc(sizeof(char *) * num_fields);
+  fields = (char **) calloc(num_fields, sizeof(char *));
 
-  fields[0] = (char *) malloc(sizeof(char) * (strlen(ex_data->ex_name) + 1));
+  fields[0] = (char *) calloc(strlen(ex_data->ex_name) + 1, sizeof(char));
   strncpy(fields[0], ex_data->ex_name, (strlen(ex_data->ex_name) + 1));
 
   fields[1] = create_format_dollars(ex_data->low);
