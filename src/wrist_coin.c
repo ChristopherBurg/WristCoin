@@ -99,7 +99,7 @@ static void free_ex_stat_list(void) {
  *
  * const char *src - The value to set the status to.
  */
-void set_ex_stat(int index, const char *src) {
+static void set_ex_stat(int index, const char *src) {
   if (ex_stat_list[index] != NULL) {
     free(ex_stat_list[index]);
     ex_stat_list[index] = NULL;
@@ -277,25 +277,32 @@ static void fetch_ex_price(int exchange) {
   app_message_outbox_send();
 }
 
+/* The callback that is fired when the user presses the select button on their
+ * Pebble. If exchange data for the selected exchange is available the exchange
+ * detail screen is displayed with the selected exchange's data. Otherwise
+ * nothing happens.
+ */
 static void select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   ExData *selected;
   const int index = cell_index->row;
 
-  if ((selected = get_ex_data(index)) != NULL) {
-    exchange_detail_show(selected);
+  /* If the status is currently set to 'Loading...' or 'Error...' then don't
+   * bring up the exchange detail screen as the data either hasn't been loaded
+   * yet or there was an error when trying to load it. Otherwise bring up the
+   * exchange detail screen for the selected exchange.
+   */
+  if (strcmp(ex_stat_list[cell_index->row], stat_loading) && strcmp(ex_stat_list[cell_index->row], stat_error)) {
+    if ((selected = get_ex_data(index)) != NULL) {
+      exchange_detail_show(selected);
+    }
+  } else {
+    app_log(APP_LOG_LEVEL_DEBUG, "wrist_coin.c", 289, "select_callback: Still loading or there was an error.");
   }
-
-  /* If the status is showing "Loading...", "Error...", or any other status
-  there's no reason to display the extended data window.
-  */
-//  if (selected->last >= 0) {
-//
-//  }
 }
 
-/* Sets the status for each exchange display to "Loading..." and asks the
-JavaScript code to fetch prices from the exchanges again.
-*/
+/* Sets the status for the selected exchange to "Loading..." and tells the phone
+ * to fetch the current prices for the selected exchange.
+ */
 static void select_long_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   set_stat_to_loading(cell_index->row);
   fetch_ex_price(cell_index->row);
