@@ -308,6 +308,9 @@ static void select_long_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
   fetch_ex_price(cell_index->row);
 }
 
+/* Returns the height of the selected cell. This value is currently fixed at 44
+ * because it leads to pretty menu items (not too big and not too small).
+ */
 static int16_t get_cell_height_callback(struct MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   return 44;
 }

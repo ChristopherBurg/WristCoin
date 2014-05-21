@@ -6,15 +6,15 @@ function convertHexStringToByteArray(string) {
   var i = 0;
 
   if (string.length % 2 != 0) {
-    console.log("Odd number of bytes. Pushing: " + parseInt(string.charAt(i), 16).toString(16));
+//    console.log("Odd number of bytes. Pushing: " + parseInt(string.charAt(i), 16).toString(16));
     byte_array.push(parseInt(string.charAt(i), 16));
     ++i;
   }
 
   while (i < string.length) {
-    console.log("Substring is " + string.substr(i, 2));
+//    console.log("Substring is " + string.substr(i, 2));
     var byte_to_push = parseInt(string.substr(i, 2), 16);
-    console.log("Pushing byte " + byte_to_push.toString(16) + " " + byte_to_push.toString(10));
+//    console.log("Pushing byte " + byte_to_push.toString(16) + " " + byte_to_push.toString(10));
     byte_array.push(byte_to_push);
     i += 2;
   }
@@ -33,6 +33,7 @@ function convertHexStringToByteArray(string) {
  * the app to begin sending messages if it's not already doing so.
  */
 var messageStack = new Array();
+
 /* A counter to determine the number of times the sendMessage function has been
  * called on an empty messageStack. After 10 intervals the messageSender should
  * be cleared and this variable reset to 0.
@@ -96,25 +97,6 @@ function sendMessage() {
                           successHandler,
                           errorHandler);
   }
-}
-
-/* This function takes a message and pushes it onto the message stack. If the
- * program isn't already sending messages this function then tells it to start
- * sending. Otherwise the function returns.
- *
- * message - The message to push onto the message stack.
- */
-function OLD_sendMessageToPebble(message) {
-  messageStack.push(message);
-
-  clearInterval(messageSender);
-  /* Call setIntervale here. Doing it in the sendMessage function causes the
-   * setInterval function not to work for some reason. Unless the app is being
-   * monitored with 'pebble logs' the sendMessage function never gets called.
-   *
-   * I'll look into this more later.
-   */
-  messageSender = setInterval(sendMessage, 250);
 }
 
 /* This variable is set to true when sendMessageToPebble's internal sending
@@ -187,34 +169,6 @@ function sendMessageToPebble(message) {
   if (!isSending) {
     setTimeout(function() { messageSender(0) }, 0);
   }
-}
-
-function OLDER_sendMessageToPebble(message) {
-  var successHandler = function(event) {
-    console.log("Successfully sent " + event.data.transactionId + " to Pebble.");
-  }
-
-  /* The Pebble can only process one message at a time. Since messages come in
-   * as they arrive from the exchange they can oftentimes send before a
-   * previous message has complete processing. To work around this any
-   * message that fails to send will cause the application to wait for a period
-   * between one and two seconds before resending.
-   *
-   * It's not pretty or elegant but it works.
-  */
-  var errorHandler = function(event) {
-    var delay = Math.floor(Math.random() * (2000 - 1000) + 1000);
-    console.log("Failed to send " + event.data.transactionId + " to Pebble.");
-    console.log("Error message for " + event.data.transactionId + " was " + event.error + ".");
-    console.log("Delaying resend for " + (delay / 1000) + " seconds.");
-    setTimeout(sendMessageToPebble(message), delay);
-  }
-
-  console.log("Sending message to Pebble");
-  console.log("Message contains command '" + message.command + "' and exchange index '" + message.exIndex + ".");
-  Pebble.sendAppMessage(message,
-                        successHandler,
-                        errorHandler);
 }
 
 // Gets the curret price list from Bitstamp.
@@ -582,8 +536,6 @@ function getEnabledIndexByName(name) {
  * with an individual exchange.
  */
 function sendGlobalConfig() {
-//  var numExEnabled = getNumExEnabled();
-
   console.log("Sending global configuration.");
   sendMessageToPebble({"command" : 0,
                        "config" : 0,
@@ -612,7 +564,6 @@ function sendExConfig() {
  * index - The index of the exchange to look up prices for.
  */
 function sendExPrices(index) {
-//  var ex = getExEnabled(index);
   console.log("Pebble requested prices for exchange " + enabledEx[index].exName + ". Sending prices now.");
 
   enabledEx[index].priceLookup();
